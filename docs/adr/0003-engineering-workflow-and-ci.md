@@ -8,7 +8,7 @@ Accepted
 
 ## Context
 
-As a portfolio project meant to be read by other engineers and recruiters, the process around the code — how it's tested, reviewed, and released — is as much a demonstration of skill as the code itself. This needed to be settled before substantial code was written, so that history and process are consistent from the first real commit rather than retrofitted.
+As an open-source reference implementation, the process around the code — how it's tested, reviewed, and released — matters as much as the code itself: it's what makes the project trustworthy and maintainable, not just functional. This needed to be settled before substantial code was written, so that history and process are consistent from the first real commit rather than retrofitted.
 
 ## Decision
 
@@ -26,7 +26,7 @@ As a portfolio project meant to be read by other engineers and recruiters, the p
 
 **Documentation:** A concise public `README.md` plus `docs/adr/` for decision history and `docs/vision.md` for the project's motivation and long-term direction. No separate docs site for now.
 
-**Repository visibility:** The repository stays **private** until the first milestone — a working ingestion pipeline landing weather data in BigQuery — is complete. GitHub preserves full commit history and original commit timestamps when a repository's visibility is flipped from private to public, so nothing is lost by waiting: the incremental development story is still visible once the repo goes public. This avoids a recruiter or reviewer finding an empty scaffold with no working functionality behind it.
+**Repository visibility:** The repository stays **private** until the first milestone — a working ingestion pipeline landing weather data in BigQuery — is complete. GitHub preserves full commit history and original commit timestamps when a repository's visibility is flipped from private to public, so nothing is lost by waiting: the incremental development story is still visible once the repo goes public. This avoids anyone finding an empty scaffold with no working functionality behind it.
 
 ## Consequences
 

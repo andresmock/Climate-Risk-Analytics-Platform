@@ -19,5 +19,5 @@ An ADR is superseded, not edited, when a decision changes — the old ADR stays 
 ## Consequences
 
 - Every non-trivial architecture or process decision gets a short, dated, discoverable record.
-- The `docs/adr/` directory becomes a readable history of the project's engineering judgment over time — useful both for future contributors and as a portfolio artifact in its own right.
+- The `docs/adr/` directory becomes a readable history of the project's engineering judgment over time — useful for future contributors trying to understand why the project looks the way it does.
 - Adds a small amount of overhead per decision, which is intentional: it forces the decision to be articulated, not just made.

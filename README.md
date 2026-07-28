@@ -4,8 +4,8 @@ An open-source reference implementation of a modern, cloud-native data engineeri
 analytics platform, built on Google Cloud Platform (GCP) around public weather and climate
 data.
 
-This is not a production system — it's a portfolio-grade project meant to demonstrate how a
-scalable, well-documented, maintainable analytics platform is designed and built
+This is not a production system — it's a reference implementation demonstrating how a
+scalable, well-documented, maintainable analytics platform can be designed and built
 incrementally, using industry-standard tooling and public data sources.
 
 See [docs/vision.md](docs/vision.md) for the full motivation and long-term direction, and
