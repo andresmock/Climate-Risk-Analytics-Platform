@@ -1,0 +1,57 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+        with:
+          version: "0.5.9"
+      - run: uv sync --all-groups
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pytest
+
+  terraform-check:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+      # No live GCP project/credentials exist yet — this validates syntax and internal
+      # consistency only (local backend). `terraform plan` against a real project lands
+      # once the GCP project is provisioned (docs/adr/0003).
+      - run: terraform init
+      - run: terraform fmt -check -recursive
+      - run: terraform validate
+
+  dataform-compile:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: dataform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # Dataform 3.x resolves @dataform/core from `dataformCoreVersion` in
+      # workflow_settings.yaml — no package.json/npm install needed.
+      # Compiles the SQLX project without needing a live BigQuery connection.
+      - run: npx --yes @dataform/cli@3.0.0 compile
+
+  docker-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      # Smoke test only — no push to a registry. That needs Artifact Registry + credentials,
+      # which land once the GCP project is provisioned (docs/adr/0003).
+      - run: docker build -f src/ingestion/Dockerfile .
