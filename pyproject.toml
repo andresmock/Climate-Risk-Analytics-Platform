@@ -4,12 +4,15 @@ version = "0.1.0"
 description = "Climate Risk Analytics Platform — reference data engineering platform on GCP"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = [
+    "requests>=2.32",
+]
 
 [dependency-groups]
 dev = [
     "ruff>=0.6",
     "pytest>=8.0",
+    "responses>=0.25",
 ]
 
 [tool.ruff]
