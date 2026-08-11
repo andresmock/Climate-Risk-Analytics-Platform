@@ -8,6 +8,7 @@ terraform {
     }
   }
 
-  # Local backend for now — no GCP project exists yet to host remote state.
-  # Migrates to a GCS backend once the project is provisioned (see docs/adr/0002).
+  # Bucket/prefix supplied via `terraform init -backend-config=backend.hcl`
+  # (backend.hcl is gitignored — contains the real project's bucket name).
+  backend "gcs" {}
 }
