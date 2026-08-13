@@ -26,10 +26,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: hashicorp/setup-terraform@v3
-      # No live GCP project/credentials exist yet — this validates syntax and internal
-      # consistency only (local backend). `terraform plan` against a real project lands
-      # once the GCP project is provisioned (docs/adr/0003).
-      - run: terraform init
+      # This validates syntax and internal consistency only — no backend/state and no live
+      # GCP credentials are needed for `fmt`/`validate`, so the GCS backend (which requires
+      # bucket/prefix from the gitignored backend.hcl) is skipped entirely. `terraform plan`
+      # against the real project happens locally / lands in CI once credentials exist
+      # (docs/adr/0003).
+      - run: terraform init -backend=false
       - run: terraform fmt -check -recursive
       - run: terraform validate
 
