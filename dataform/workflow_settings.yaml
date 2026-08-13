@@ -1,5 +1,5 @@
 defaultProject: climate-risk-analytics-placeholder
-defaultLocation: europe-west1
-defaultDataset: dataform
-defaultAssertionDataset: dataform_assertions
+defaultLocation: europe-west6
+defaultDataset: climate_risk
+defaultAssertionDataset: climate_risk_assertions
 dataformCoreVersion: 3.0.0
