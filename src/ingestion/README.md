@@ -10,10 +10,15 @@ this service belongs to.
 ## Status
 
 `open_meteo.py` fetches the raw Forecast API response for each location in `locations.py`
-(`fetch_forecast` for one, `fetch_all` for all of them). It's storage-agnostic by design — no
-GCS write yet, and no Cloud Run entrypoint — those land once a GCP project exists to point at
-(see [AGENT.md](../../AGENT.md) guardrails). The Dockerfile's `CMD` is still the scaffolding
-placeholder.
+(`fetch_forecast` for one, `fetch_all` for all of them). `storage.py` uploads each response,
+unmodified, to the raw GCS bucket. `main.py` is the Cloud Run entrypoint (`Dockerfile`'s `CMD`):
+it runs both for every location in `locations.py` and exits non-zero if any location fails.
+
+Requires the `RAW_BUCKET_NAME` environment variable (the GCS bucket declared in
+`terraform/storage.tf`) — the entrypoint fails fast if it's unset.
+
+Not deployed yet: this runs the fetch-and-write logic, but no Cloud Run Job, Cloud Scheduler,
+or IAM exists to actually run it in GCP (next step).
 
 Starter locations were picked to span distinct climate-risk profiles rather than arbitrary
 coverage: Zurich (baseline), Mexico City (seismic), Madrid (extreme heat), Mumbai (monsoon

@@ -30,5 +30,4 @@ ENV PATH="/app/.venv/bin:$PATH" \
 
 USER app
 
-# Placeholder entrypoint — replaced with the real ingestion service in the next milestone.
-CMD ["python", "-c", "import ingestion; print(ingestion.__version__)"]
+CMD ["python", "-m", "ingestion.main"]
