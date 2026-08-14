@@ -4,10 +4,12 @@ Infrastructure as code for the platform's GCP resources (see
 [docs/adr/0002](../docs/adr/0002-initial-architecture-and-technology-stack.md)).
 
 A real GCP project now backs this config, with state stored remotely in GCS, the required APIs
-(`apis.tf`) declared, the raw landing bucket (`storage.tf`), and the warehouse datasets
-(`bigquery.tf`). The Cloud Run service, Cloud Scheduler job, Artifact Registry repository, and
-IAM are not declared yet — those land once the ingestion service has a real entrypoint to
-deploy (see `src/ingestion/README.md`).
+(`apis.tf`) declared, the raw landing bucket (`storage.tf`), and the BigQuery datasets
+(`bigquery.tf`): `climate_risk_raw` is an external table reading the raw GCS objects directly (no
+copy, no separate load step — BigQuery just queries them where they sit), and `climate_risk` is
+where Dataform will materialize modelled output on top of it. The Cloud Run service, Cloud
+Scheduler job, Artifact Registry repository, and IAM are not declared yet — those land once the
+ingestion service has a real entrypoint to deploy (see `src/ingestion/README.md`).
 
 ## Applying changes
 
