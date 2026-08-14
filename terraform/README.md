@@ -3,9 +3,11 @@
 Infrastructure as code for the platform's GCP resources (see
 [docs/adr/0002](../docs/adr/0002-initial-architecture-and-technology-stack.md)).
 
-A real GCP project now backs this config, with state stored remotely in GCS and the required
-APIs (`apis.tf`) declared. No other resources (GCS landing bucket, BigQuery datasets, Cloud Run
-service, Cloud Scheduler jobs, IAM) are declared yet — those land with the ingestion milestone.
+A real GCP project now backs this config, with state stored remotely in GCS, the required APIs
+(`apis.tf`) declared, the raw landing bucket (`storage.tf`), and the warehouse datasets
+(`bigquery.tf`). The Cloud Run service, Cloud Scheduler job, Artifact Registry repository, and
+IAM are not declared yet — those land once the ingestion service has a real entrypoint to
+deploy (see `src/ingestion/README.md`).
 
 To `init`/`plan`/`apply` against the real project, two gitignored files are required locally
 (neither is committed — see `.gitignore`):
