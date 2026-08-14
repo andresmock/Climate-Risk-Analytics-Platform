@@ -29,6 +29,27 @@ resource "google_bigquery_table" "forecasts_raw" {
     # `/` in `open-meteo/<location>/<timestamp>.json`, since GCS object names are flat strings,
     # not real directories.
     source_uris = ["gs://${google_storage_bucket.raw.name}/open-meteo/*.json"]
-    autodetect  = true
+
+    # Explicit schema, not autodetect: autodetect requires a matching file to already exist in
+    # GCS at apply time, which makes table creation depend on the ingestion service having run.
+    # `hourly`/`hourly_units` stay as opaque JSON rather than flattened RECORD/REPEATED fields —
+    # unnesting the time series is Dataform's job, not the raw layer's.
+    autodetect = false
+    schema = jsonencode([
+      { name = "latitude", type = "FLOAT64" },
+      { name = "longitude", type = "FLOAT64" },
+      { name = "generationtime_ms", type = "FLOAT64" },
+      { name = "utc_offset_seconds", type = "INT64" },
+      { name = "timezone", type = "STRING" },
+      { name = "timezone_abbreviation", type = "STRING" },
+      { name = "elevation", type = "FLOAT64" },
+      { name = "hourly_units", type = "JSON" },
+      { name = "hourly", type = "JSON" },
+    ])
+
+    # If Open-Meteo's response shape changes, unrecognized fields are silently skipped rather
+    # than erroring queries — GCS still keeps every byte, so widening the schema later recovers
+    # full visibility into both historical and new files without needing to re-ingest anything.
+    ignore_unknown_values = true
   }
 }
