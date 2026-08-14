@@ -13,9 +13,10 @@ See [docs/vision.md](docs/vision.md) for the full motivation and long-term direc
 
 ## Status
 
-🚧 Early scaffolding stage. Repo structure, conventions, and CI are in place; the first
-working milestone (Open-Meteo weather data flowing from ingestion into BigQuery) is in
-progress.
+✅ First milestone complete: Open-Meteo weather data flows from ingestion into BigQuery
+(`climate_risk_raw.forecasts`, an external table reading the raw GCS bucket directly).
+Ingestion currently runs manually; deploying it to Cloud Run on a schedule, and building
+the Dataform models on top of the raw table, are the next steps.
 
 ## Architecture
 
