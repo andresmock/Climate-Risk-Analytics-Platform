@@ -9,6 +9,7 @@ locals {
     "iam.googleapis.com",              # IAM (service accounts, bindings)
     "iamcredentials.googleapis.com",   # Workload Identity Federation (GitHub Actions CI)
     "sts.googleapis.com",              # Workload Identity Federation (GitHub Actions CI)
+    "cloudresourcemanager.googleapis.com", # required by the google provider itself
   ]
 }
 
