@@ -94,16 +94,34 @@ jobs:
               });
             }
 
-  # Applies to the real project. Manually triggered (Actions tab -> Run workflow, on main)
-  # rather than auto-run on merge: required-reviewer environment protection rules aren't
-  # available on private repos on GitHub's free tier, so a manual trigger is the substitute
-  # human checkpoint for now — merging a PR is not by itself the final destructive action.
-  # The `terraform-apply` environment still restricts this to the main branch. Revisit once
-  # the repo goes public (ADR-0003) and the required-reviewer rule becomes available.
-  terraform-apply:
-    if: github.event_name == 'workflow_dispatch'
+  # Detects whether a push to main touched terraform/, so terraform-apply only runs (and
+  # only prompts the required reviewer) when there's an actual infra change to apply — not
+  # on every merge. Skipped entirely outside of push events.
+  changes:
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
-    needs: terraform-check
+    outputs:
+      terraform: ${{ steps.filter.outputs.terraform }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            terraform:
+              - 'terraform/**'
+
+  # Applies to the real project. Runs automatically when a push to main touches terraform/,
+  # or on demand via Actions tab -> Run workflow. The terraform-apply environment requires a
+  # manual reviewer approval before this actually executes (available now that the repo is
+  # public, per ADR-0003) and restricts it to the main branch — that approval is the human
+  # checkpoint, not the trigger itself.
+  terraform-apply:
+    if: |
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'push' && needs.changes.outputs.terraform == 'true')
+    runs-on: ubuntu-latest
+    needs: [terraform-check, changes]
     environment: terraform-apply
     permissions:
       contents: read
