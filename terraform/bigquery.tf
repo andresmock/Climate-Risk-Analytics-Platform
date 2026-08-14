@@ -21,11 +21,14 @@ resource "google_bigquery_dataset" "raw" {
 resource "google_bigquery_table" "forecasts_raw" {
   dataset_id  = google_bigquery_dataset.raw.dataset_id
   table_id    = "forecasts"
-  description = "Raw Open-Meteo forecast responses, one row per file in gs://<raw-bucket>/open-meteo/*/*.json."
+  description = "Raw Open-Meteo forecast responses, one row per file in gs://<raw-bucket>/open-meteo/*.json."
 
   external_data_configuration {
     source_format = "NEWLINE_DELIMITED_JSON"
-    source_uris   = ["gs://${google_storage_bucket.raw.name}/open-meteo/*/*.json"]
-    autodetect    = true
+    # BigQuery allows only one wildcard per source URI. A single `*` still matches across the
+    # `/` in `open-meteo/<location>/<timestamp>.json`, since GCS object names are flat strings,
+    # not real directories.
+    source_uris = ["gs://${google_storage_bucket.raw.name}/open-meteo/*.json"]
+    autodetect  = true
   }
 }
