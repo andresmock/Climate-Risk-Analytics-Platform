@@ -7,6 +7,8 @@ locals {
     "artifactregistry.googleapis.com", # Cloud Run image registry
     "cloudbuild.googleapis.com",       # Cloud Build
     "iam.googleapis.com",              # IAM (service accounts, bindings)
+    "iamcredentials.googleapis.com",   # Workload Identity Federation (GitHub Actions CI)
+    "sts.googleapis.com",              # Workload Identity Federation (GitHub Actions CI)
   ]
 }
 
