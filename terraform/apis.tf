@@ -1,14 +1,14 @@
 locals {
   required_apis = [
-    "run.googleapis.com",              # Cloud Run
-    "cloudscheduler.googleapis.com",   # Cloud Scheduler
-    "bigquery.googleapis.com",         # BigQuery
-    "storage.googleapis.com",          # Cloud Storage
-    "artifactregistry.googleapis.com", # Cloud Run image registry
-    "cloudbuild.googleapis.com",       # Cloud Build
-    "iam.googleapis.com",              # IAM (service accounts, bindings)
-    "iamcredentials.googleapis.com",   # Workload Identity Federation (GitHub Actions CI)
-    "sts.googleapis.com",              # Workload Identity Federation (GitHub Actions CI)
+    "run.googleapis.com",                  # Cloud Run
+    "cloudscheduler.googleapis.com",       # Cloud Scheduler
+    "bigquery.googleapis.com",             # BigQuery
+    "storage.googleapis.com",              # Cloud Storage
+    "artifactregistry.googleapis.com",     # Cloud Run image registry
+    "cloudbuild.googleapis.com",           # Cloud Build
+    "iam.googleapis.com",                  # IAM (service accounts, bindings)
+    "iamcredentials.googleapis.com",       # Workload Identity Federation (GitHub Actions CI)
+    "sts.googleapis.com",                  # Workload Identity Federation (GitHub Actions CI)
     "cloudresourcemanager.googleapis.com", # required by the google provider itself
   ]
 }
