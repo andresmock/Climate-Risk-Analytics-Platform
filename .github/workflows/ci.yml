@@ -194,18 +194,20 @@ jobs:
           github.event_name == 'push' && github.ref == 'refs/heads/main' &&
           steps.filter.outputs.ingestion == 'true'
         uses: google-github-actions/setup-gcloud@v2
+      # Hardcoded rather than a repo variable: must match `region`'s default in
+      # terraform/variables.tf, which this job has no Terraform state access to read.
       - if: |
           github.event_name == 'push' && github.ref == 'refs/heads/main' &&
           steps.filter.outputs.ingestion == 'true'
-        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+        run: gcloud auth configure-docker "europe-west6-docker.pkg.dev" --quiet
       - if: |
           github.event_name == 'push' && github.ref == 'refs/heads/main' &&
           steps.filter.outputs.ingestion == 'true'
         run: |
-          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ingestion/ingestion:${{ github.sha }}"
+          IMAGE="europe-west6-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ingestion/ingestion:${{ github.sha }}"
           docker tag ingestion:ci "$IMAGE"
           docker push "$IMAGE"
           gcloud run jobs update ingestion \
             --image="$IMAGE" \
-            --region="${{ vars.GCP_REGION }}" \
+            --region="europe-west6" \
             --project="${{ vars.GCP_PROJECT_ID }}"
