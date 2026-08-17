@@ -19,8 +19,7 @@ Requires the `RAW_BUCKET_NAME` environment variable (the GCS bucket declared in
 
 The Cloud Run Job, Cloud Scheduler job, Artifact Registry repository, and IAM needed to run this
 in GCP are now declared in `terraform/` (see `terraform/README.md` and
-[ADR-0005](../../docs/adr/0005-ingestion-scheduling-and-deploys.md)), but not yet live — applying
-still needs the one-time manual IAM bootstrap `terraform/README.md` describes.
+[ADR-0005](../../docs/adr/0005-ingestion-scheduling-and-deploys.md)), but not yet live.
 
 Starter locations were picked to span distinct climate-risk profiles rather than arbitrary
 coverage: Zurich (baseline), Mexico City (seismic), Madrid (extreme heat), Mumbai (monsoon
