@@ -44,8 +44,8 @@ resource "google_cloud_run_v2_job_iam_member" "ingestion_deploy_updates_job" {
 # terraform-ci's own binding, which this repo also doesn't manage.
 resource "google_service_account_iam_member" "ingestion_deploy_wif" {
   service_account_id = google_service_account.ingestion_deploy.name
-  role                = "roles/iam.workloadIdentityUser"
-  member              = var.github_actions_wif_member
+  role               = "roles/iam.workloadIdentityUser"
+  member             = var.github_actions_wif_member
 }
 
 # Identity Cloud Scheduler uses to invoke the ingestion job. Separate from
@@ -66,6 +66,6 @@ resource "google_cloud_run_v2_job_iam_member" "scheduler_invokes_job" {
 # scheduler_invoker directly — it needs permission to mint tokens *as* that account.
 resource "google_service_account_iam_member" "scheduler_agent_mints_invoker_tokens" {
   service_account_id = google_service_account.scheduler_invoker.name
-  role                = "roles/iam.serviceAccountTokenCreator"
-  member              = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
 }
