@@ -1,8 +1,18 @@
+# IAM grants can take up to ~60s to propagate. Without this, terraform-ci's actAs grant on
+# ingestion_runtime (terraform/iam.tf) can finish creating just before the Job below, but not
+# yet be effective, producing a flaky "Permission 'iam.serviceaccounts.actAs' denied" 403.
+resource "time_sleep" "wait_for_ingestion_runtime_actas" {
+  depends_on      = [google_service_account_iam_member.terraform_ci_acts_as_ingestion_runtime]
+  create_duration = "30s"
+}
+
 # Cloud Run Job, not Service: main.py runs the ingestion loop once and exits, it doesn't
 # serve HTTP traffic. See docs/adr/0005 for the reasoning.
 resource "google_cloud_run_v2_job" "ingestion" {
   name     = "ingestion"
   location = var.region
+
+  depends_on = [time_sleep.wait_for_ingestion_runtime_actas]
 
   template {
     template {
