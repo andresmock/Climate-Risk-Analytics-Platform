@@ -2,6 +2,24 @@ data "google_project" "current" {
   project_id = var.project_id
 }
 
+# Read-only identity for `terraform plan` in CI. Deliberately separate from terraform-ci:
+# plan runs automatically on every same-repo PR with no human review, while apply is gated
+# behind a required reviewer (see ci.yml). Sharing terraform-ci's write-capable identity would
+# let an unreviewed PR reach terraform-ci's full blast radius via `terraform init`/`plan`
+# executing provider code with live credentials — plan should only ever be able to read. See
+# ADR-0007. Its project-level role (Viewer) and state-bucket access are granted by hand, same
+# as terraform-ci's own role — this repo doesn't manage either.
+resource "google_service_account" "terraform_plan" {
+  account_id   = "terraform-plan"
+  display_name = "Read-only identity for `terraform plan` in CI"
+}
+
+resource "google_service_account_iam_member" "terraform_plan_wif" {
+  service_account_id = google_service_account.terraform_plan.name
+  role                = "roles/iam.workloadIdentityUser"
+  member              = var.github_actions_wif_member
+}
+
 # Runtime identity for the ingestion Cloud Run Job itself. Write-only access to the raw
 # bucket, nothing else — kept separate from terraform-ci, which manages infra shape, not
 # ingestion's own runtime permissions.
