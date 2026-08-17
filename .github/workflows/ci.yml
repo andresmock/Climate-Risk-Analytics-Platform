@@ -63,6 +63,7 @@ jobs:
       - run: |
           terraform plan -no-color -input=false \
             -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
+            -var="github_actions_wif_member=${{ vars.GCP_WIF_MEMBER }}" \
             -out=tfplan
       - run: terraform show -no-color tfplan > plan.txt
       - uses: actions/github-script@v7
@@ -142,7 +143,8 @@ jobs:
             -backend-config="prefix=${{ vars.TF_STATE_PREFIX }}"
       - run: |
           terraform apply -auto-approve -input=false \
-            -var="project_id=${{ vars.GCP_PROJECT_ID }}"
+            -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
+            -var="github_actions_wif_member=${{ vars.GCP_WIF_MEMBER }}"
 
   dataform-compile:
     runs-on: ubuntu-latest
@@ -159,10 +161,51 @@ jobs:
       # Compiles the SQLX project without needing a live BigQuery connection.
       - run: npx --yes @dataform/cli@3.0.0 compile
 
+  # Builds the ingestion image as a smoke test on every trigger. On push to main, if
+  # ingestion's own source changed, also pushes the image to Artifact Registry and points
+  # the live Cloud Run Job at it — independent of terraform-apply above. See docs/adr/0005
+  # for why image deploys are deliberately decoupled from the Terraform apply gate.
   docker-build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v4
-      # Smoke test only — no push to a registry. That needs Artifact Registry + credentials,
-      # which land once the GCP project is provisioned (docs/adr/0003).
-      - run: docker build -f src/ingestion/Dockerfile .
+      - run: docker build -f src/ingestion/Dockerfile -t ingestion:ci .
+
+      - if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            ingestion:
+              - 'src/ingestion/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+      - if: |
+          github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+          steps.filter.outputs.ingestion == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_INGESTION_DEPLOY_SERVICE_ACCOUNT }}
+      - if: |
+          github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+          steps.filter.outputs.ingestion == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+      - if: |
+          github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+          steps.filter.outputs.ingestion == 'true'
+        run: gcloud auth configure-docker "${{ vars.GCP_REGION }}-docker.pkg.dev" --quiet
+      - if: |
+          github.event_name == 'push' && github.ref == 'refs/heads/main' &&
+          steps.filter.outputs.ingestion == 'true'
+        run: |
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ingestion/ingestion:${{ github.sha }}"
+          docker tag ingestion:ci "$IMAGE"
+          docker push "$IMAGE"
+          gcloud run jobs update ingestion \
+            --image="$IMAGE" \
+            --region="${{ vars.GCP_REGION }}" \
+            --project="${{ vars.GCP_PROJECT_ID }}"

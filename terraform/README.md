@@ -7,9 +7,43 @@ A real GCP project now backs this config, with state stored remotely in GCS, the
 (`apis.tf`) declared, the raw landing bucket (`storage.tf`), and the BigQuery datasets
 (`bigquery.tf`): `climate_risk_raw` is an external table reading the raw GCS objects directly (no
 copy, no separate load step — BigQuery just queries them where they sit), and `climate_risk` is
-where Dataform will materialize modelled output on top of it. The Cloud Run service, Cloud
-Scheduler job, Artifact Registry repository, and IAM are not declared yet — those land once the
-ingestion service has a real entrypoint to deploy (see `src/ingestion/README.md`).
+where Dataform will materialize modelled output on top of it.
+
+Ingestion runs as a Cloud Run Job (`cloud_run.tf`), triggered every 6 hours by Cloud Scheduler
+(`scheduler.tf`) via the Cloud Run Jobs Admin API. Its image lives in Artifact Registry
+(`artifact_registry.tf`). Three narrowly-scoped service accounts (`iam.tf`) support this:
+`ingestion-runtime` (what the job executes as), `ingestion-deploy` (CI's identity for pushing
+images and updating the job — kept separate from `terraform-ci`, which never touches the live
+image), and `ingestion-scheduler` (Cloud Scheduler's invoker identity). See
+[ADR-0005](../docs/adr/0005-ingestion-scheduling-and-deploys.md) for why deploys are decoupled
+from `terraform apply` this way.
+
+### One-time manual setup
+
+Two things need doing by hand before this applies cleanly — both are bootstrap steps outside
+Terraform's own permissions, same as `terraform-ci`'s original setup:
+
+1. **Extend `terraform-ci`'s IAM roles** to manage the new resource types (Artifact Registry,
+   Cloud Run, and creating the new service accounts):
+   ```
+   gcloud projects add-iam-policy-binding <project> \
+     --member="serviceAccount:terraform-ci@<project>.iam.gserviceaccount.com" \
+     --role="roles/artifactregistry.admin"
+   gcloud projects add-iam-policy-binding <project> \
+     --member="serviceAccount:terraform-ci@<project>.iam.gserviceaccount.com" \
+     --role="roles/run.admin"
+   gcloud projects add-iam-policy-binding <project> \
+     --member="serviceAccount:terraform-ci@<project>.iam.gserviceaccount.com" \
+     --role="roles/iam.serviceAccountAdmin"
+   ```
+2. **Supply `github_actions_wif_member`** — look up the exact WIF principal already bound to
+   `terraform-ci` (`gcloud iam service-accounts get-iam-policy terraform-ci@<project>.iam.gserviceaccount.com`)
+   and reuse it: set it in `terraform.tfvars` locally, and as a new `GCP_WIF_MEMBER` repository
+   variable for CI.
+
+CI also needs two new repository variables: `GCP_REGION` (matching `var.region`'s value) and
+`GCP_INGESTION_DEPLOY_SERVICE_ACCOUNT` (`ingestion-deploy@<project>.iam.gserviceaccount.com` —
+predictable ahead of the first apply, since the account ID is fixed in `iam.tf`).
 
 ## Applying changes
 
