@@ -39,7 +39,10 @@ jobs:
   # review happens against the actual infra change, not just the source diff. Read-only:
   # nothing here can touch real resources. See docs/adr/0003.
   terraform-plan:
-    if: github.event_name == 'pull_request'
+    # Restricted to PRs opened from this repo, not forks: a fork PR supplies its own workflow
+    # file for `pull_request` runs, so without this check it would still get this job's
+    # terraform-ci WIF impersonation and pull-requests: write token.
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     needs: terraform-check
     permissions:
