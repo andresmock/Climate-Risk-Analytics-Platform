@@ -16,8 +16,8 @@ resource "google_service_account" "terraform_plan" {
 
 resource "google_service_account_iam_member" "terraform_plan_wif" {
   service_account_id = google_service_account.terraform_plan.name
-  role                = "roles/iam.workloadIdentityUser"
-  member              = var.github_actions_wif_member
+  role               = "roles/iam.workloadIdentityUser"
+  member             = var.github_actions_wif_member
 }
 
 # Runtime identity for the ingestion Cloud Run Job itself. Write-only access to the raw
