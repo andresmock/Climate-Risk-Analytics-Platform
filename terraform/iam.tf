@@ -16,6 +16,15 @@ resource "google_storage_bucket_iam_member" "ingestion_runtime_writes_raw" {
   member = "serviceAccount:${google_service_account.ingestion_runtime.email}"
 }
 
+# terraform-ci must be able to actAs ingestion_runtime to set it as the Cloud Run Job's
+# runtime service account (see cloud_run.tf). Flagged as a future requirement in
+# docs/adr/0004 when ingestion_runtime was introduced.
+resource "google_service_account_iam_member" "terraform_ci_acts_as_ingestion_runtime" {
+  service_account_id = google_service_account.ingestion_runtime.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:terraform-ci@${var.project_id}.iam.gserviceaccount.com"
+}
+
 # Deploy identity used by CI (via WIF, no stored key) to push new ingestion images and
 # point the Cloud Run Job at them. See docs/adr/0005: deploys are deliberately decoupled
 # from terraform-ci, which never touches the live image.
