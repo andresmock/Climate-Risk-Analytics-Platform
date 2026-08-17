@@ -75,6 +75,16 @@ resource "google_service_account_iam_member" "ingestion_deploy_wif" {
   member             = var.github_actions_wif_member
 }
 
+# `gcloud run jobs update` requires actAs on the job's *current* runtime service account for
+# any update, even one that doesn't touch the service account field itself — the same
+# requirement already granted to terraform-ci above, just missed for ingestion-deploy when
+# ADR-0005 split deploys into their own identity.
+resource "google_service_account_iam_member" "ingestion_deploy_acts_as_ingestion_runtime" {
+  service_account_id = google_service_account.ingestion_runtime.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.ingestion_deploy.email}"
+}
+
 # Identity Cloud Scheduler uses to invoke the ingestion job. Separate from
 # ingestion-deploy: this one only runs the job, it never updates it.
 resource "google_service_account" "scheduler_invoker" {
