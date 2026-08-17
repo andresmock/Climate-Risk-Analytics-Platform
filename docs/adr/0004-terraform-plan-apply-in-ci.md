@@ -4,7 +4,7 @@ Date: 2026-08-14
 
 ## Status
 
-Accepted
+Accepted; the apply-trigger mechanism and `terraform-ci`'s role list are superseded by [ADR-0006](0006-terraform-ci-footprint-update.md). Everything else below (WIF-based auth, the plan-as-PR-comment flow, retirement of local applies) still holds.
 
 ## Context
 
