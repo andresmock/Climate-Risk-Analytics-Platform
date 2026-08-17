@@ -7,9 +7,16 @@ A real GCP project now backs this config, with state stored remotely in GCS, the
 (`apis.tf`) declared, the raw landing bucket (`storage.tf`), and the BigQuery datasets
 (`bigquery.tf`): `climate_risk_raw` is an external table reading the raw GCS objects directly (no
 copy, no separate load step — BigQuery just queries them where they sit), and `climate_risk` is
-where Dataform will materialize modelled output on top of it. The Cloud Run service, Cloud
-Scheduler job, Artifact Registry repository, and IAM are not declared yet — those land once the
-ingestion service has a real entrypoint to deploy (see `src/ingestion/README.md`).
+where Dataform will materialize modelled output on top of it.
+
+Ingestion runs as a Cloud Run Job (`cloud_run.tf`), triggered every 6 hours by Cloud Scheduler
+(`scheduler.tf`) via the Cloud Run Jobs Admin API. Its image lives in Artifact Registry
+(`artifact_registry.tf`). Three narrowly-scoped service accounts (`iam.tf`) support this:
+`ingestion-runtime` (what the job executes as), `ingestion-deploy` (CI's identity for pushing
+images and updating the job — kept separate from `terraform-ci`, which never touches the live
+image), and `ingestion-scheduler` (Cloud Scheduler's invoker identity). See
+[ADR-0005](../docs/adr/0005-ingestion-scheduling-and-deploys.md) for why deploys are decoupled
+from `terraform apply` this way.
 
 ## Applying changes
 
