@@ -10,6 +10,8 @@ locals {
     "iamcredentials.googleapis.com",       # Workload Identity Federation (GitHub Actions CI)
     "sts.googleapis.com",                  # Workload Identity Federation (GitHub Actions CI)
     "cloudresourcemanager.googleapis.com", # required by the google provider itself
+    "dataform.googleapis.com",             # Dataform repository, release/workflow configs
+    "developerconnect.googleapis.com",     # links the Dataform repository to this GitHub repo
   ]
 }
 
