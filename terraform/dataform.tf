@@ -19,11 +19,11 @@ resource "google_developer_connect_connection" "github" {
 }
 
 resource "google_developer_connect_git_repository_link" "warehouse" {
-  provider                = google-beta
-  location                = var.region
-  parent_connection       = google_developer_connect_connection.github.connection_id
-  git_repository_link_id  = "climate-risk-analytics-platform"
-  clone_uri               = "https://github.com/andresmock/Climate-Risk-Analytics-Platform.git"
+  provider               = google-beta
+  location               = var.region
+  parent_connection      = google_developer_connect_connection.github.connection_id
+  git_repository_link_id = "climate-risk-analytics-platform"
+  clone_uri              = "https://github.com/andresmock/Climate-Risk-Analytics-Platform.git"
 }
 
 output "developer_connect_installation_state" {
