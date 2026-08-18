@@ -42,6 +42,13 @@ resource "google_cloud_run_v2_job" "ingestion" {
   }
 
   lifecycle {
-    ignore_changes = [template[0].template[0].containers[0].image]
+    # `client`/`client_version`: `gcloud run jobs update` (the same deploy command that
+    # overwrites `image` above) stamps its own CLI identity here too, causing the same
+    # spurious plan diff if left tracked.
+    ignore_changes = [
+      template[0].template[0].containers[0].image,
+      client,
+      client_version,
+    ]
   }
 }
