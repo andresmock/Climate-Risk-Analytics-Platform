@@ -144,7 +144,7 @@ resource "google_project_iam_member" "dataform_runtime_runs_queries" {
 # terraform-ci must be able to actAs dataform_runtime to set it as the Dataform repository's
 # and workflow config's runtime service account (terraform/dataform.tf phase 2).
 resource "google_service_account_iam_member" "terraform_ci_acts_as_dataform_runtime" {
-  service_account_id = google_service_account.dataform_runtime.name
+  service_account_id  = google_service_account.dataform_runtime.name
   role                = "roles/iam.serviceAccountUser"
   member              = "serviceAccount:terraform-ci@${var.project_id}.iam.gserviceaccount.com"
 }
@@ -154,7 +154,7 @@ resource "google_service_account_iam_member" "terraform_ci_acts_as_dataform_runt
 # Included defensively per docs/adr/0008; **verify at first scheduled run** whether this is
 # actually required, since it wasn't confirmed against a live project before that ADR.
 resource "google_service_account_iam_member" "dataform_agent_mints_runtime_tokens" {
-  service_account_id = google_service_account.dataform_runtime.name
+  service_account_id  = google_service_account.dataform_runtime.name
   role                = "roles/iam.serviceAccountTokenCreator"
   member              = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-dataform.iam.gserviceaccount.com"
 }
