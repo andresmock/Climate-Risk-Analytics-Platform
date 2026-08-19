@@ -156,3 +156,15 @@ resource "google_service_account_iam_member" "terraform_ci_acts_as_dataform_runt
 # only auto-provisioned by Google on first Dataform use, and granting a role to a
 # not-yet-existent service account 400s (confirmed against a live project in run #80).
 # **Verify at first scheduled run** whether this grant is actually required.
+
+# Developer Connect's own Google-managed service agent needs to create a Secret Manager secret
+# to store this connection's GitHub App credentials. Google's Console "Enable API" flow grants
+# this by default; enabling the API via Terraform does not, so it 400s on connection creation
+# without this (see docs/adr/0011). roles/secretmanager.admin is the only predefined role
+# including secretmanager.secrets.create.
+resource "google_project_iam_member" "devconnect_agent_manages_secrets" {
+  project    = var.project_id
+  role       = "roles/secretmanager.admin"
+  member     = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-devconnect.iam.gserviceaccount.com"
+  depends_on = [google_project_service.required["developerconnect.googleapis.com"]]
+}

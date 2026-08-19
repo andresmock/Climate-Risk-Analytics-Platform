@@ -13,10 +13,14 @@ resource "google_developer_connect_connection" "github" {
   location      = var.region
   connection_id = "climate-risk-analytics-platform"
 
-  # Without this, Terraform has no edge to the API-enablement resource (nothing here
-  # references it) and can start creating the connection before developerconnect.googleapis.com
-  # has finished enabling, or before that enablement has propagated — both hit SERVICE_DISABLED.
-  depends_on = [google_project_service.required["developerconnect.googleapis.com"]]
+  # Without these, Terraform has no edge to either prerequisite (nothing here references them)
+  # and can start creating the connection before developerconnect.googleapis.com has finished
+  # enabling/propagating (SERVICE_DISABLED), or before Developer Connect's own service agent can
+  # create its backing Secret Manager secret (SECRET_CREATE_PERMISSION_MISSING, see iam.tf).
+  depends_on = [
+    google_project_service.required["developerconnect.googleapis.com"],
+    google_project_iam_member.devconnect_agent_manages_secrets,
+  ]
 
   github_config {
     github_app = "DEVELOPER_CONNECT"
