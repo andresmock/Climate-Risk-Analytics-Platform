@@ -5,7 +5,8 @@ Date: 2026-08-17
 ## Status
 
 Accepted, role list superseded by [ADR-0009](0009-terraform-ci-project-iam-admin-role.md) and
-[ADR-0010](0010-terraform-ci-developer-connect-admin-role.md)
+[ADR-0010](0010-terraform-ci-developer-connect-admin-role.md); apply-trigger mechanism superseded
+by [ADR-0012](0012-terraform-apply-moves-local-only.md)
 
 ## Context
 

@@ -4,7 +4,7 @@ Date: 2026-08-14
 
 ## Status
 
-Accepted; the apply-trigger mechanism and `terraform-ci`'s role list are superseded by [ADR-0006](0006-terraform-ci-footprint-update.md). Everything else below (WIF-based auth, the plan-as-PR-comment flow, retirement of local applies) still holds.
+Accepted; `terraform-ci`'s role list is superseded by [ADR-0006](0006-terraform-ci-footprint-update.md). The apply-trigger mechanism is further superseded by [ADR-0012](0012-terraform-apply-moves-local-only.md), which retires CI-run apply — "retirement of local applies" below no longer holds. WIF-based auth and the plan-as-PR-comment flow still hold.
 
 ## Context
 
