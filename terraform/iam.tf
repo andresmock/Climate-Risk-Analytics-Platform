@@ -149,12 +149,10 @@ resource "google_service_account_iam_member" "terraform_ci_acts_as_dataform_runt
   member             = "serviceAccount:terraform-ci@${var.project_id}.iam.gserviceaccount.com"
 }
 
-# Dataform's Google-managed service agent mints OAuth tokens as dataform_runtime to execute
+# Dataform's Google-managed service agent (service-<project_number>@gcp-sa-dataform.iam.gserviceaccount.com)
+# will need roles/iam.serviceAccountTokenCreator on dataform_runtime to mint OAuth tokens for
 # scheduled workflow invocations — same shape as scheduler_agent_mints_invoker_tokens above.
-# Included defensively per docs/adr/0008; **verify at first scheduled run** whether this is
-# actually required, since it wasn't confirmed against a live project before that ADR.
-resource "google_service_account_iam_member" "dataform_agent_mints_runtime_tokens" {
-  service_account_id = google_service_account.dataform_runtime.name
-  role               = "roles/iam.serviceAccountTokenCreator"
-  member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-dataform.iam.gserviceaccount.com"
-}
+# Deferred to the follow-up PR that creates the actual google_dataform_repository: the agent is
+# only auto-provisioned by Google on first Dataform use, and granting a role to a
+# not-yet-existent service account 400s (confirmed against a live project in run #80).
+# **Verify at first scheduled run** whether this grant is actually required.

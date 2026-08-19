@@ -4,7 +4,7 @@ Date: 2026-08-17
 
 ## Status
 
-Accepted
+Accepted, role list superseded by [ADR-0009](0009-terraform-ci-project-iam-admin-role.md)
 
 ## Context
 
