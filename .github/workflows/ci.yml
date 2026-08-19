@@ -29,8 +29,8 @@ jobs:
       - uses: hashicorp/setup-terraform@v3
       # This validates syntax and internal consistency only — no backend/state and no live
       # GCP credentials are needed for `fmt`/`validate`, so the GCS backend (which requires
-      # bucket/prefix from the gitignored backend.hcl) is skipped entirely. Live `plan`/`apply`
-      # against the real project happen in terraform-plan / terraform-apply below.
+      # bucket/prefix from the gitignored backend.hcl) is skipped entirely. Live `plan` against
+      # the real project happens in terraform-plan below; `apply` is local-only (see ADR-0012).
       - run: terraform init -backend=false
       - run: terraform fmt -check -recursive
       - run: terraform validate
@@ -98,63 +98,6 @@ jobs:
               });
             }
 
-  # Detects whether a push to main touched terraform/, so terraform-apply only runs (and
-  # only prompts the required reviewer) when there's an actual infra change to apply — not
-  # on every merge. Skipped entirely outside of push events.
-  changes:
-    if: github.event_name == 'push'
-    runs-on: ubuntu-latest
-    outputs:
-      terraform: ${{ steps.filter.outputs.terraform }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
-        id: filter
-        with:
-          filters: |
-            terraform:
-              - 'terraform/**'
-
-  # Applies to the real project. Runs automatically when a push to main touches terraform/,
-  # or on demand via Actions tab -> Run workflow. The terraform-apply environment requires a
-  # manual reviewer approval before this actually executes (available now that the repo is
-  # public, per ADR-0003) and restricts it to the main branch — that approval is the human
-  # checkpoint, not the trigger itself.
-  terraform-apply:
-    # `changes` only runs on push, so it's skipped on workflow_dispatch — and a skipped `needs`
-    # job makes this job skip too regardless of `if`, unless guarded with always(). The explicit
-    # terraform-check result check replaces the default "all needs succeeded" gate that always()
-    # bypasses.
-    if: |
-      always() && needs.terraform-check.result == 'success' && (
-        github.event_name == 'workflow_dispatch' ||
-        (github.event_name == 'push' && needs.changes.outputs.terraform == 'true')
-      )
-    runs-on: ubuntu-latest
-    needs: [terraform-check, changes]
-    environment: terraform-apply
-    permissions:
-      contents: read
-      id-token: write
-    defaults:
-      run:
-        working-directory: terraform
-    steps:
-      - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v2
-        with:
-          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
-          service_account: ${{ vars.GCP_TF_SERVICE_ACCOUNT }}
-      - uses: hashicorp/setup-terraform@v3
-      - run: |
-          terraform init \
-            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
-            -backend-config="prefix=${{ vars.TF_STATE_PREFIX }}"
-      - run: |
-          terraform apply -auto-approve -input=false \
-            -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
-            -var="github_actions_wif_member=${{ vars.GCP_WIF_MEMBER }}"
-
   dataform-compile:
     runs-on: ubuntu-latest
     defaults:
@@ -172,8 +115,8 @@ jobs:
 
   # Builds the ingestion image as a smoke test on every trigger. On push to main, if
   # ingestion's own source changed, also pushes the image to Artifact Registry and points
-  # the live Cloud Run Job at it — independent of terraform-apply above. See docs/adr/0005
-  # for why image deploys are deliberately decoupled from the Terraform apply gate.
+  # the live Cloud Run Job at it — independent of terraform apply, which is local-only (see
+  # ADR-0012). See docs/adr/0005 for why image deploys are deliberately decoupled from it.
   docker-build:
     runs-on: ubuntu-latest
     permissions:
