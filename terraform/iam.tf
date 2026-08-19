@@ -106,3 +106,55 @@ resource "google_service_account_iam_member" "scheduler_agent_mints_invoker_toke
   role               = "roles/iam.serviceAccountTokenCreator"
   member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
 }
+
+# Default execution identity for the Dataform repository (terraform/dataform.tf): reads the
+# raw external table, writes modelled output and assertion results. See docs/adr/0008.
+resource "google_service_account" "dataform_runtime" {
+  account_id   = "dataform-runtime"
+  display_name = "Dataform repository runtime identity"
+}
+
+resource "google_bigquery_dataset_iam_member" "dataform_runtime_reads_raw" {
+  dataset_id = google_bigquery_dataset.raw.dataset_id
+  role       = "roles/bigquery.dataViewer"
+  member     = "serviceAccount:${google_service_account.dataform_runtime.email}"
+}
+
+resource "google_bigquery_dataset_iam_member" "dataform_runtime_writes_warehouse" {
+  dataset_id = google_bigquery_dataset.warehouse.dataset_id
+  role       = "roles/bigquery.dataEditor"
+  member     = "serviceAccount:${google_service_account.dataform_runtime.email}"
+}
+
+resource "google_bigquery_dataset_iam_member" "dataform_runtime_writes_warehouse_assertions" {
+  dataset_id = google_bigquery_dataset.warehouse_assertions.dataset_id
+  role       = "roles/bigquery.dataEditor"
+  member     = "serviceAccount:${google_service_account.dataform_runtime.email}"
+}
+
+# Project-level, not dataset-scoped: BigQuery query-job creation has no dataset-scoped
+# equivalent to jobUser. Deliberate exception to this repo's otherwise resource-scoped SA
+# grants (see docs/adr/0008) — every other SA here holds only resource-scoped bindings.
+resource "google_project_iam_member" "dataform_runtime_runs_queries" {
+  project = var.project_id
+  role    = "roles/bigquery.jobUser"
+  member  = "serviceAccount:${google_service_account.dataform_runtime.email}"
+}
+
+# terraform-ci must be able to actAs dataform_runtime to set it as the Dataform repository's
+# and workflow config's runtime service account (terraform/dataform.tf phase 2).
+resource "google_service_account_iam_member" "terraform_ci_acts_as_dataform_runtime" {
+  service_account_id = google_service_account.dataform_runtime.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:terraform-ci@${var.project_id}.iam.gserviceaccount.com"
+}
+
+# Dataform's Google-managed service agent mints OAuth tokens as dataform_runtime to execute
+# scheduled workflow invocations — same shape as scheduler_agent_mints_invoker_tokens above.
+# Included defensively per docs/adr/0008; **verify at first scheduled run** whether this is
+# actually required, since it wasn't confirmed against a live project before that ADR.
+resource "google_service_account_iam_member" "dataform_agent_mints_runtime_tokens" {
+  service_account_id = google_service_account.dataform_runtime.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-dataform.iam.gserviceaccount.com"
+}
