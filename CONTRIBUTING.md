@@ -20,14 +20,14 @@
 
 | Touching...                                          | CI does automatically                                                                          | You also need to |
 |--------------------------------------------------------|--------------------------------------------------------------------------------------------------|-------------------|
-| `terraform/**`                                          | `terraform-check` (fmt/validate) on every push/PR; `terraform-plan` posts a plan as a PR comment | After merging, run `terraform apply` yourself against the real project — CI never applies. See [ADR-0012](docs/adr/0012-terraform-apply-moves-local-only.md). |
+| `terraform/**`                                          | `terraform-check` (fmt/validate) on every push/PR; `terraform-plan` posts a plan as a PR comment; a daily `terraform-drift` job fails if `main` has unapplied changes | After merging, run `terraform apply` yourself against the real project — CI never applies. See [ADR-0012](docs/adr/0012-terraform-apply-moves-local-only.md) and [ADR-0014](docs/adr/0014-terraform-drift-detection.md). |
 | `src/ingestion/**`, `pyproject.toml`, `uv.lock`          | On push to `main`: builds the image, pushes it, and updates the live Cloud Run Job               | Nothing — fully automatic. See [ADR-0005](docs/adr/0005-ingestion-scheduling-and-deploys.md). |
 | `dataform/**`                                            | Compiles the SQLX project (no live BigQuery connection)                                          | Nothing yet — deploying the compiled output isn't wired up yet. |
 | Python (`src/`, `tests/`, `pyproject.toml`)              | `ruff check`, `ruff format --check`, `pytest` on every push/PR                                   | Nothing beyond passing CI. |
 
 ## Running `terraform apply` locally
 
-Per [ADR-0012](docs/adr/0012-terraform-apply-moves-local-only.md), `terraform apply` against the real project only ever runs locally, authenticated by impersonating the `terraform-ci` service account — never in CI. If you need to do this and don't already have that access, ask a maintainer.
+Per [ADR-0012](docs/adr/0012-terraform-apply-moves-local-only.md), `terraform apply` against the real project only ever runs locally, authenticated by impersonating the `terraform-ci` service account — never in CI. If you need to do this and don't already have that access, ask a maintainer. See [`terraform/README.md`](terraform/README.md#applying-changes) for the exact setup and commands.
 
 ## Architecture decisions
 
