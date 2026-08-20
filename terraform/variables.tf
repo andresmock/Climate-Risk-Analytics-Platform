@@ -14,9 +14,9 @@ variable "github_actions_wif_member" {
   description = <<-EOT
     Full WIF principal member string granted impersonation rights on ingestion-deploy, e.g.
     "principalSet://iam.googleapis.com/projects/<number>/locations/global/workloadIdentityPools/<pool>/attribute.repository/<owner>/<repo>".
-    Reuse the exact value already bound to terraform-ci — same pool, same repo restriction,
+    Reuse the exact value already bound to terraform-apply — same pool, same repo restriction,
     different service account. Find it with:
-    `gcloud iam service-accounts get-iam-policy terraform-ci@<project>.iam.gserviceaccount.com`
+    `gcloud iam service-accounts get-iam-policy terraform-apply@<project>.iam.gserviceaccount.com`
   EOT
   type        = string
 }

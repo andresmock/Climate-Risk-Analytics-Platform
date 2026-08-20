@@ -1,6 +1,6 @@
 config {
   type: "table",
-  schema: "climate_risk",
+  schema: "climate_risk_warehouse",
   description: "One row per location, per forecasted hour, per ingestion run. Open-Meteo revises its forecast on every pull, so successive runs can return different values for the same hour — every version is kept rather than only the latest, so forecast revisions are visible.",
   assertions: {
     uniqueKey: ["location_slug", "forecast_time_utc", "ingested_at"],

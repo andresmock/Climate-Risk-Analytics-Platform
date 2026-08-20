@@ -27,7 +27,7 @@
 
 ## Running `terraform apply` locally
 
-Per [ADR-0012](docs/adr/0012-terraform-apply-moves-local-only.md), `terraform apply` against the real project only ever runs locally, authenticated by impersonating the `terraform-ci` service account — never in CI. If you need to do this and don't already have that access, ask a maintainer. See [`terraform/README.md`](terraform/README.md#applying-changes) for the exact setup and commands.
+Per [ADR-0012](docs/adr/0012-terraform-apply-moves-local-only.md), `terraform apply` against the real project only ever runs locally, authenticated by impersonating the `terraform-apply` service account — never in CI. If you need to do this and don't already have that access, ask a maintainer. See [`terraform/README.md`](terraform/README.md#applying-changes) for the exact setup and commands.
 
 ## Architecture decisions
 

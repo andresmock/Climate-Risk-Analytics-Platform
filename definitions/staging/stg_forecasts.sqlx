@@ -1,6 +1,6 @@
 config {
   type: "view",
-  schema: "climate_risk",
+  schema: "climate_risk_warehouse",
   description: "Unnests each raw forecast response's parallel hourly arrays into one row per (location, forecast hour)."
 }
 

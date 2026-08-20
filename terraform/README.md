@@ -6,15 +6,15 @@ Infrastructure as code for the platform's GCP resources (see
 A real GCP project now backs this config, with state stored remotely in GCS, the required APIs
 (`apis.tf`) declared, the raw landing bucket (`storage.tf`), and the BigQuery datasets
 (`bigquery.tf`): `climate_risk_raw` is an external table reading the raw GCS objects directly (no
-copy, no separate load step — BigQuery just queries them where they sit), and `climate_risk` is
-where Dataform will materialize modelled output on top of it.
+copy, no separate load step — BigQuery just queries them where they sit), and
+`climate_risk_warehouse` is where Dataform will materialize modelled output on top of it.
 
 Ingestion runs as a Cloud Run Job (`cloud_run.tf`), triggered every 6 hours by Cloud Scheduler
 (`scheduler.tf`) via the Cloud Run Jobs Admin API. Its image lives in Artifact Registry
 (`artifact_registry.tf`). Three narrowly-scoped service accounts (`iam.tf`) support this:
 `ingestion-runtime` (what the job executes as), `ingestion-deploy` (CI's identity for pushing
-images and updating the job — kept separate from `terraform-ci`, which never touches the live
-image), and `ingestion-scheduler` (Cloud Scheduler's invoker identity). See
+images and updating the job — kept separate from `terraform-apply`, which never touches the live
+image), and `ingestion-invoker` (Cloud Scheduler's invoker identity). See
 [ADR-0005](../docs/adr/0005-ingestion-scheduling-and-deploys.md) for why deploys are decoupled
 from `terraform apply` this way.
 
@@ -25,18 +25,18 @@ from `terraform apply` this way.
 
 - Every PR touching `terraform/` runs `terraform plan` in CI and posts the output as a PR
   comment, so review covers the actual planned infra change. CI never runs `apply`.
-- After merging to `main`, apply the change yourself, locally, impersonating `terraform-ci`:
+- After merging to `main`, apply the change yourself, locally, impersonating `terraform-apply`:
 
   ```bash
   cd terraform
-  export GOOGLE_IMPERSONATE_SERVICE_ACCOUNT="terraform-ci@<PROJECT_ID>.iam.gserviceaccount.com"
+  export GOOGLE_IMPERSONATE_SERVICE_ACCOUNT="terraform-apply@<PROJECT_ID>.iam.gserviceaccount.com"
   terraform init -backend-config=backend.hcl
   terraform plan -out=tfplan
   terraform apply tfplan
   ```
 
   This requires your own GCP principal to hold `roles/iam.serviceAccountTokenCreator` on
-  `terraform-ci` (granted by hand, same as `terraform-ci`'s other roles — see
+  `terraform-apply` (granted by hand, same as `terraform-apply`'s other roles — see
   [docs/adr/0013](../docs/adr/0013-terraform-ci-custom-role.md)).
 - A scheduled drift check (`.github/workflows/terraform-drift.yml`) runs `terraform plan` daily
   against `main` and fails if it finds unapplied changes, so a merge that never got applied

@@ -20,7 +20,7 @@ This directory:
   table Terraform owns in `terraform/bigquery.tf`).
 - `staging/` — one-to-one views that parse/unnest raw source shapes into typed rows, no business
   logic.
-- `marts/` — the actual modelled output, with assertions (`climate_risk_assertions`).
+- `marts/` — the actual modelled output, with assertions (`climate_risk_warehouse_assertions`).
 
 Runs on Google's schedule (`terraform/dataform.tf`'s release/workflow configs), not from CI or
 locally — see [docs/adr/0008](../docs/adr/0008-dataform-execution-model.md).
