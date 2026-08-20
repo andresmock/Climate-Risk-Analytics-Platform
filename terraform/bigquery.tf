@@ -1,13 +1,18 @@
+# delete_contents_on_destroy: unlike raw (storage.tf's force_destroy = false), this dataset
+# holds only Dataform-materialized, fully rebuildable output — nothing is lost by letting it be
+# torn down without emptying it by hand first (see docs/adr/0015).
 resource "google_bigquery_dataset" "warehouse" {
-  dataset_id  = "climate_risk"
-  location    = var.region
-  description = "Modelled climate/weather data, materialized by Dataform."
+  dataset_id                 = "climate_risk_warehouse"
+  location                   = var.region
+  description                = "Modelled climate/weather data, materialized by Dataform."
+  delete_contents_on_destroy = true
 }
 
 resource "google_bigquery_dataset" "warehouse_assertions" {
-  dataset_id  = "climate_risk_assertions"
-  location    = var.region
-  description = "Dataform assertion results for the climate_risk dataset."
+  dataset_id                 = "climate_risk_warehouse_assertions"
+  location                   = var.region
+  description                = "Dataform assertion results for the climate_risk_warehouse dataset."
+  delete_contents_on_destroy = true
 }
 
 resource "google_bigquery_dataset" "raw" {

@@ -4,7 +4,7 @@ data "google_project" "current" {
 }
 
 # ---- terraform-plan: read-only CI identity ----
-# Separate from terraform-ci so an unreviewed PR can't reach terraform-ci's write-capable
+# Separate from terraform-apply so an unreviewed PR can't reach terraform-apply's write-capable
 # blast radius via `terraform init`/`plan` (ADR-0007). Role + state-bucket access granted by
 # hand, not by this file.
 resource "google_service_account" "terraform_plan" {
@@ -31,16 +31,16 @@ resource "google_storage_bucket_iam_member" "ingestion_runtime_writes_raw" {
   member = "serviceAccount:${google_service_account.ingestion_runtime.email}"
 }
 
-# terraform-ci needs actAs to assign this SA as the Cloud Run Job's runtime identity
+# terraform-apply needs actAs to assign this SA as the Cloud Run Job's runtime identity
 # (cloud_run.tf).
-resource "google_service_account_iam_member" "terraform_ci_acts_as_ingestion_runtime" {
+resource "google_service_account_iam_member" "terraform_apply_acts_as_ingestion_runtime" {
   service_account_id = google_service_account.ingestion_runtime.name
   role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:terraform-ci@${var.project_id}.iam.gserviceaccount.com"
+  member             = "serviceAccount:terraform-apply@${var.project_id}.iam.gserviceaccount.com"
 }
 
 # ---- ingestion-deploy: CI identity for image pushes and job updates ----
-# Decoupled from terraform-ci, which never touches the live image (ADR-0005).
+# Decoupled from terraform-apply, which never touches the live image (ADR-0005).
 resource "google_service_account" "ingestion_deploy" {
   account_id   = "ingestion-deploy"
   display_name = "CI identity for ingestion image deploys"
@@ -68,30 +68,30 @@ resource "google_service_account_iam_member" "ingestion_deploy_wif" {
 }
 
 # `run jobs update` requires actAs on the job's current runtime SA for any update, even one
-# that doesn't touch it — missed when ADR-0005 split deploys out of terraform-ci.
+# that doesn't touch it — missed when ADR-0005 split deploys out of terraform-apply.
 resource "google_service_account_iam_member" "ingestion_deploy_acts_as_ingestion_runtime" {
   service_account_id = google_service_account.ingestion_runtime.name
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.ingestion_deploy.email}"
 }
 
-# ---- ingestion-scheduler: Cloud Scheduler's invoker identity ----
+# ---- ingestion-invoker: Cloud Scheduler's invoker identity ----
 # Runs the job only, never updates it — kept separate from ingestion-deploy.
-resource "google_service_account" "scheduler_invoker" {
-  account_id   = "ingestion-scheduler"
+resource "google_service_account" "ingestion_invoker" {
+  account_id   = "ingestion-invoker"
   display_name = "Cloud Scheduler invoker for the ingestion job"
 }
 
-resource "google_cloud_run_v2_job_iam_member" "scheduler_invokes_job" {
+resource "google_cloud_run_v2_job_iam_member" "ingestion_invoker_invokes_job" {
   name     = google_cloud_run_v2_job.ingestion.name
   location = google_cloud_run_v2_job.ingestion.location
   role     = "roles/run.invoker"
-  member   = "serviceAccount:${google_service_account.scheduler_invoker.email}"
+  member   = "serviceAccount:${google_service_account.ingestion_invoker.email}"
 }
 
-# Cloud Scheduler's Google-managed agent mints OAuth tokens as scheduler_invoker.
+# Cloud Scheduler's Google-managed agent mints OAuth tokens as ingestion_invoker.
 resource "google_service_account_iam_member" "scheduler_agent_mints_invoker_tokens" {
-  service_account_id = google_service_account.scheduler_invoker.name
+  service_account_id = google_service_account.ingestion_invoker.name
   role               = "roles/iam.serviceAccountTokenCreator"
   member             = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-cloudscheduler.iam.gserviceaccount.com"
 }
@@ -121,11 +121,11 @@ resource "google_bigquery_dataset_iam_member" "dataform_runtime_writes_warehouse
   member     = "serviceAccount:${google_service_account.dataform_runtime.email}"
 }
 
-# terraform-ci needs actAs to assign this SA as Dataform's runtime identity (dataform.tf).
-resource "google_service_account_iam_member" "terraform_ci_acts_as_dataform_runtime" {
+# terraform-apply needs actAs to assign this SA as Dataform's runtime identity (dataform.tf).
+resource "google_service_account_iam_member" "terraform_apply_acts_as_dataform_runtime" {
   service_account_id = google_service_account.dataform_runtime.name
   role               = "roles/iam.serviceAccountUser"
-  member             = "serviceAccount:terraform-ci@${var.project_id}.iam.gserviceaccount.com"
+  member             = "serviceAccount:terraform-apply@${var.project_id}.iam.gserviceaccount.com"
 }
 
 # TODO: Dataform's service agent will need serviceAccountTokenCreator on dataform_runtime to
@@ -134,7 +134,7 @@ resource "google_service_account_iam_member" "terraform_ci_acts_as_dataform_runt
 # Verify at first scheduled run whether this is actually required.
 
 # ---- Manual grants: applied by hand, not managed by this file ----
-# terraform-ci holds no project-level setIamPolicy permission (ADR-0013), so these can't be
+# terraform-apply holds no project-level setIamPolicy permission (ADR-0013), so these can't be
 # google_project_iam_member resources.
 #
 # roles/bigquery.jobUser for serviceAccount:dataform-runtime@<project>.iam.gserviceaccount.com
@@ -143,15 +143,23 @@ resource "google_service_account_iam_member" "terraform_ci_acts_as_dataform_runt
 # roles/secretmanager.admin for serviceAccount:service-<project number>@gcp-sa-devconnect.iam.gserviceaccount.com
 #   Lets Developer Connect's service agent create the secret backing its GitHub App
 #   credentials (ADR-0011).
+#
+# roles/iam.roleAdmin for serviceAccount:terraform-apply@<project>.iam.gserviceaccount.com
+#   The scoped custom role below deliberately grants no iam.roles.* or resourcemanager.projects.*
+#   permissions (ADR-0013), so terraform-apply can't read or manage that role — or even read
+#   basic project metadata (`data.google_project.current` above) — using only its own custom
+#   role. roles/iam.roleAdmin covers both. Without this, every `plan`/`apply` fails on
+#   google_project_iam_custom_role.terraform_apply and data.google_project.current with 403s
+#   (see ADR-0015).
 
-# ---- terraform-ci: custom role ----
+# ---- terraform-apply: custom role ----
 # Exactly the permissions this repo's Terraform uses, replacing the broad *.admin roles
-# ADR-0006/0009/0010 accumulated (ADR-0013). Binding this role to terraform-ci itself is a
-# manual, out-of-band step.
-resource "google_project_iam_custom_role" "terraform_ci" {
-  role_id     = "terraform_ci"
-  title       = "terraform-ci (scoped)"
-  description = "Least-privilege role for terraform-ci: exactly the permissions this repo's Terraform declares, no project-level IAM policy management. See docs/adr/0013."
+# ADR-0006/0009/0010 accumulated (ADR-0013). Binding this role — and roles/iam.roleAdmin above —
+# to terraform-apply itself is a manual, out-of-band step.
+resource "google_project_iam_custom_role" "terraform_apply" {
+  role_id     = "terraform_apply"
+  title       = "terraform-apply (scoped)"
+  description = "Least-privilege role for terraform-apply: exactly the permissions this repo's Terraform declares, no project-level IAM policy management. See docs/adr/0013."
   stage       = "GA"
 
   permissions = [
