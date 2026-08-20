@@ -239,5 +239,22 @@ resource "google_project_iam_custom_role" "terraform_ci" {
     "iam.serviceAccounts.delete",
     "iam.serviceAccounts.getIamPolicy",
     "iam.serviceAccounts.setIamPolicy",
+
+    # Dataform (google_dataform_repository, *_release_config, *_workflow_config —
+    # terraform/dataform.tf). Not verified against gcloud list-testable-permissions (no live
+    # resource existed yet to test against, unlike the rest of this list) — a missing permission
+    # surfaces as PERMISSION_DENIED on apply, same fallback ADR-0013 already accepts elsewhere.
+    "dataform.repositories.create",
+    "dataform.repositories.get",
+    "dataform.repositories.update",
+    "dataform.repositories.delete",
+    "dataform.releaseConfigs.create",
+    "dataform.releaseConfigs.get",
+    "dataform.releaseConfigs.update",
+    "dataform.releaseConfigs.delete",
+    "dataform.workflowConfigs.create",
+    "dataform.workflowConfigs.get",
+    "dataform.workflowConfigs.update",
+    "dataform.workflowConfigs.delete",
   ]
 }
