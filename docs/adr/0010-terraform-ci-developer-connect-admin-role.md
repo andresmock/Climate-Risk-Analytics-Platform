@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted, superseded by [ADR-0013](0013-terraform-ci-custom-role.md): terraform-ci no longer
+holds `roles/developerconnect.admin`, replaced by scoped permissions in a custom role
 
 ## Context
 

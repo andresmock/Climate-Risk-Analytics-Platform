@@ -13,14 +13,10 @@ resource "google_developer_connect_connection" "github" {
   location      = var.region
   connection_id = "climate-risk-analytics-platform"
 
-  # Without these, Terraform has no edge to either prerequisite (nothing here references them)
-  # and can start creating the connection before developerconnect.googleapis.com has finished
-  # enabling/propagating (SERVICE_DISABLED), or before Developer Connect's own service agent can
-  # create its backing Secret Manager secret (SECRET_CREATE_PERMISSION_MISSING, see iam.tf).
-  depends_on = [
-    google_project_service.required["developerconnect.googleapis.com"],
-    google_project_iam_member.devconnect_agent_manages_secrets,
-  ]
+  # Guards against creating the connection before the API finishes enabling (SERVICE_DISABLED).
+  # The other prerequisite, the devconnect agent's Secret Manager grant, is now a manual step
+  # with no Terraform resource to depend on (see docs/adr/0013) — it must exist before apply.
+  depends_on = [google_project_service.required["developerconnect.googleapis.com"]]
 
   github_config {
     github_app = "DEVELOPER_CONNECT"

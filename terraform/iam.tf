@@ -133,13 +133,10 @@ resource "google_bigquery_dataset_iam_member" "dataform_runtime_writes_warehouse
 }
 
 # Project-level, not dataset-scoped: BigQuery query-job creation has no dataset-scoped
-# equivalent to jobUser. Deliberate exception to this repo's otherwise resource-scoped SA
-# grants (see docs/adr/0008) — every other SA here holds only resource-scoped bindings.
-resource "google_project_iam_member" "dataform_runtime_runs_queries" {
-  project = var.project_id
-  role    = "roles/bigquery.jobUser"
-  member  = "serviceAccount:${google_service_account.dataform_runtime.email}"
-}
+# equivalent to jobUser (deliberate exception to docs/adr/0008's resource-scoped SA grants).
+# Granted by hand, not via google_project_iam_member: terraform-ci holds no project-level
+# setIamPolicy permission (docs/adr/0013).
+# roles/bigquery.jobUser for serviceAccount:dataform-runtime@<project>.iam.gserviceaccount.com
 
 # terraform-ci must be able to actAs dataform_runtime to set it as the Dataform repository's
 # and workflow config's runtime service account (terraform/dataform.tf phase 2).
@@ -157,14 +154,90 @@ resource "google_service_account_iam_member" "terraform_ci_acts_as_dataform_runt
 # not-yet-existent service account 400s (confirmed against a live project in run #80).
 # **Verify at first scheduled run** whether this grant is actually required.
 
-# Developer Connect's own Google-managed service agent needs to create a Secret Manager secret
-# to store this connection's GitHub App credentials. Google's Console "Enable API" flow grants
-# this by default; enabling the API via Terraform does not, so it 400s on connection creation
-# without this (see docs/adr/0011). roles/secretmanager.admin is the only predefined role
-# including secretmanager.secrets.create.
-resource "google_project_iam_member" "devconnect_agent_manages_secrets" {
-  project    = var.project_id
-  role       = "roles/secretmanager.admin"
-  member     = "serviceAccount:service-${data.google_project.current.number}@gcp-sa-devconnect.iam.gserviceaccount.com"
-  depends_on = [google_project_service.required["developerconnect.googleapis.com"]]
+# Developer Connect's service agent needs this to create the Secret Manager secret backing
+# this connection's GitHub App credentials (see docs/adr/0011). Granted by hand, not via
+# google_project_iam_member: terraform-ci holds no project-level setIamPolicy permission
+# (docs/adr/0013).
+# roles/secretmanager.admin for serviceAccount:service-<project number>@gcp-sa-devconnect.iam.gserviceaccount.com
+
+# Custom role for terraform-ci, replacing the broad predefined *.admin roles ADR-0006/0009/0010
+# accumulated. Scoped to exactly what this repo's Terraform resources use, verified against
+# gcloud list-testable-permissions (see docs/adr/0013). Excludes resourcemanager.projects.*
+# IamPolicy — binding this role to terraform-ci itself is a manual, out-of-band step.
+resource "google_project_iam_custom_role" "terraform_ci" {
+  role_id     = "terraform_ci"
+  title       = "terraform-ci (scoped)"
+  description = "Least-privilege role for terraform-ci: exactly the permissions this repo's Terraform declares, no project-level IAM policy management. See docs/adr/0013."
+  stage       = "GA"
+
+  permissions = [
+    # Service Usage (google_project_service)
+    "serviceusage.services.enable",
+    "serviceusage.services.disable",
+    "serviceusage.services.get",
+    "serviceusage.services.list",
+
+    # Cloud Storage (google_storage_bucket, google_storage_bucket_iam_member)
+    "storage.buckets.create",
+    "storage.buckets.get",
+    "storage.buckets.update",
+    "storage.buckets.delete",
+    "storage.buckets.getIamPolicy",
+    "storage.buckets.setIamPolicy",
+
+    # Artifact Registry (google_artifact_registry_repository, *_iam_member)
+    "artifactregistry.repositories.create",
+    "artifactregistry.repositories.get",
+    "artifactregistry.repositories.update",
+    "artifactregistry.repositories.delete",
+    "artifactregistry.repositories.getIamPolicy",
+    "artifactregistry.repositories.setIamPolicy",
+
+    # BigQuery (google_bigquery_dataset x3, google_bigquery_table, *_iam_member x3)
+    "bigquery.datasets.create",
+    "bigquery.datasets.get",
+    "bigquery.datasets.update",
+    "bigquery.datasets.delete",
+    "bigquery.datasets.getIamPolicy",
+    "bigquery.datasets.setIamPolicy",
+    "bigquery.tables.create",
+    "bigquery.tables.get",
+    "bigquery.tables.update",
+    "bigquery.tables.delete",
+
+    # Cloud Run (google_cloud_run_v2_job, *_iam_member x2)
+    "run.jobs.create",
+    "run.jobs.get",
+    "run.jobs.update",
+    "run.jobs.delete",
+    "run.jobs.getIamPolicy",
+    "run.jobs.setIamPolicy",
+    "run.operations.get", # LRO polling — Cloud Run job creation is long-running
+
+    # Cloud Scheduler (google_cloud_scheduler_job)
+    "cloudscheduler.jobs.create",
+    "cloudscheduler.jobs.get",
+    "cloudscheduler.jobs.fullView", # roles/cloudscheduler.admin carries this alongside .get
+    "cloudscheduler.jobs.update",
+    "cloudscheduler.jobs.delete",
+
+    # Developer Connect (google_developer_connect_connection, google_developer_connect_git_repository_link)
+    "developerconnect.connections.create",
+    "developerconnect.connections.get",
+    "developerconnect.connections.update",
+    "developerconnect.connections.delete",
+    "developerconnect.gitRepositoryLinks.create",
+    "developerconnect.gitRepositoryLinks.get",
+    "developerconnect.gitRepositoryLinks.delete",
+    "developerconnect.operations.get", # LRO polling — observed 20s+ connection creation in run #80
+    "developerconnect.locations.get",
+
+    # IAM (google_service_account x5, google_service_account_iam_member x6)
+    "iam.serviceAccounts.create",
+    "iam.serviceAccounts.get",
+    "iam.serviceAccounts.update",
+    "iam.serviceAccounts.delete",
+    "iam.serviceAccounts.getIamPolicy",
+    "iam.serviceAccounts.setIamPolicy",
+  ]
 }

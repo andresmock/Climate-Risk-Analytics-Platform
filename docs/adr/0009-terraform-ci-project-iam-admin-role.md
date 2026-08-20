@@ -2,7 +2,8 @@
 
 ## Status
 
-Accepted
+Accepted, superseded by [ADR-0013](0013-terraform-ci-custom-role.md): terraform-ci no longer
+holds `roles/resourcemanager.projectIamAdmin` or any project-level `setIamPolicy` permission
 
 ## Context
 
