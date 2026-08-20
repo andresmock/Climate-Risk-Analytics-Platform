@@ -229,6 +229,7 @@ resource "google_project_iam_custom_role" "terraform_ci" {
     "developerconnect.gitRepositoryLinks.create",
     "developerconnect.gitRepositoryLinks.get",
     "developerconnect.gitRepositoryLinks.delete",
+    "developerconnect.gitRepositoryLinks.fetchReadWriteToken",
     "developerconnect.operations.get", # LRO polling — observed 20s+ connection creation in run #80
     "developerconnect.locations.get",
 
