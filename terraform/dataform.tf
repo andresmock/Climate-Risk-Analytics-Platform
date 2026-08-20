@@ -56,7 +56,7 @@ resource "google_dataform_repository" "warehouse" {
 }
 
 # Recompiles `main` daily, producing a compilation result the workflow config below executes.
-# `default_database` is set here, not in the committed dataform/workflow_settings.yaml (which
+# `default_database` is set here, not in the committed workflow_settings.yaml (which
 # keeps its placeholder project) — keeps the real project ID out of git. Cadence is a starting
 # guess, not measured, same as ingestion's 6-hour cadence (docs/adr/0005) — easy to retune.
 resource "google_dataform_repository_release_config" "warehouse" {

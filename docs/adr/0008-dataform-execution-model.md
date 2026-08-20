@@ -106,3 +106,14 @@ Dataform repository/release/workflow configs that reference the now-`COMPLETE` c
   ingestion's 6-hourly ticks) are starting guesses, not measured choices, same as ingestion's
   6-hour cadence in ADR-0005 — easy to retune once there's real data on compile frequency needs and
   data-freshness lag.
+
+**Correction (found applying this ADR):** Google Cloud's git-linked Dataform repositories require
+`workflow_settings.yaml` and `definitions/` at the repository root — there's no subdirectory
+support (confirmed against [dataform-co/dataform#2028](https://github.com/dataform-co/dataform/issues/2028),
+still open). With those files nested under `dataform/`, as originally laid out, Dataform's compile
+API can't find `workflow_settings.yaml` at the root, falls back to legacy `package.json`-based
+resolution, and fails with `Can't find package.json`. Fixed by moving `dataform/workflow_settings.yaml`
+and `dataform/definitions/` to the repository root (`workflow_settings.yaml`, `definitions/`); see
+`definitions/README.md`. `terraform/dataform.tf` and `dataform-compile` (`.github/workflows/ci.yml`)
+are unaffected beyond that path change — the git repository link still points at this repo's root,
+and `dataform compile` now runs from the repo root instead of `dataform/`.
