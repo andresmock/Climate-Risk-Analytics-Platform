@@ -33,7 +33,7 @@ Cloud Storage (raw)
 BigQuery (warehouse)
       │
       ▼
-Dataform (modelling + assertions)          — dataform/
+Dataform (modelling + assertions)          — definitions/
 ```
 
 All infrastructure is declared in Terraform (`terraform/`). See
@@ -57,7 +57,8 @@ behind each choice.
 
 - `src/ingestion/` — Cloud Run ingestion service and its `Dockerfile`
 - `terraform/` — infrastructure as code
-- `dataform/` — BigQuery transformations
+- `definitions/` — Dataform SQLX models (BigQuery transformations); `workflow_settings.yaml` at
+  the repo root configures the Dataform project (see `definitions/README.md`)
 - `docs/adr/` — architecture decision records
 - `docs/vision.md` — project motivation and long-term direction
 - `tests/` — Python test suite
