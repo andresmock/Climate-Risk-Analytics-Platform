@@ -1,0 +1,51 @@
+name: Terraform Drift Check
+
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+
+# Flags a merged-but-unapplied terraform/ change: apply is local-only and manual (see
+# docs/adr/0012), so nothing else signals a merged PR that hasn't been applied yet. See
+# docs/adr/0014.
+jobs:
+  terraform-drift:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    defaults:
+      run:
+        working-directory: terraform
+    steps:
+      - uses: actions/checkout@v4
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TF_PLAN_SERVICE_ACCOUNT }}
+      - uses: hashicorp/setup-terraform@v3
+      - run: |
+          terraform init \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" \
+            -backend-config="prefix=${{ vars.TF_STATE_PREFIX }}"
+      - name: terraform plan
+        id: plan
+        run: |
+          set +e
+          terraform plan -detailed-exitcode -no-color -input=false \
+            -var="project_id=${{ vars.GCP_PROJECT_ID }}" \
+            -var="github_actions_wif_member=${{ vars.GCP_WIF_MEMBER }}" \
+            -out=tfplan
+          echo "exitcode=$?" >> "$GITHUB_OUTPUT"
+      - name: Show plan
+        if: steps.plan.outputs.exitcode == '2'
+        run: terraform show -no-color tfplan
+      - name: Fail if drift or error
+        if: steps.plan.outputs.exitcode != '0'
+        run: |
+          if [ "${{ steps.plan.outputs.exitcode }}" = "2" ]; then
+            echo "::error::Terraform drift detected on main — unapplied changes exist. Run 'terraform apply' locally (see terraform/README.md)."
+          else
+            echo "::error::terraform plan failed (exit code ${{ steps.plan.outputs.exitcode }})."
+          fi
+          exit 1

@@ -20,20 +20,34 @@ from `terraform apply` this way.
 
 ## Applying changes
 
-`terraform apply` against the real project happens in CI, not locally (see
-[docs/adr/0004](../docs/adr/0004-terraform-plan-apply-in-ci.md)):
+`terraform apply` against the real project is local-only, run by a human (see
+[docs/adr/0012](../docs/adr/0012-terraform-apply-moves-local-only.md)):
 
-- Every PR touching `terraform/` runs `terraform plan` and posts the output as a PR comment, so
-  review covers the actual planned infra change.
-- After merging to `main`, apply is triggered manually from the Actions tab
-  (`workflow_dispatch` on the `terraform-apply` job) rather than running automatically.
+- Every PR touching `terraform/` runs `terraform plan` in CI and posts the output as a PR
+  comment, so review covers the actual planned infra change. CI never runs `apply`.
+- After merging to `main`, apply the change yourself, locally, impersonating `terraform-ci`:
 
-Local `terraform apply` is retired. To `init`/`plan`/`validate` locally while iterating, two
-gitignored files are still needed (neither is committed — see `.gitignore`):
+  ```bash
+  cd terraform
+  export GOOGLE_IMPERSONATE_SERVICE_ACCOUNT="terraform-ci@<PROJECT_ID>.iam.gserviceaccount.com"
+  terraform init -backend-config=backend.hcl
+  terraform plan -out=tfplan
+  terraform apply tfplan
+  ```
 
-- `terraform.tfvars` — sets `project_id` to the real GCP project ID
+  This requires your own GCP principal to hold `roles/iam.serviceAccountTokenCreator` on
+  `terraform-ci` (granted by hand, same as `terraform-ci`'s other roles — see
+  [docs/adr/0013](../docs/adr/0013-terraform-ci-custom-role.md)).
+- A scheduled drift check (`.github/workflows/terraform-drift.yml`) runs `terraform plan` daily
+  against `main` and fails if it finds unapplied changes, so a merge that never got applied
+  doesn't go unnoticed — see [docs/adr/0014](../docs/adr/0014-terraform-drift-detection.md).
+
+Two gitignored files are needed for local `init`/`plan`/`apply` (neither is committed — see
+`.gitignore`):
+
+- `terraform.tfvars` — sets `project_id` (and other required vars) to the real values
 - `backend.hcl` — sets the `bucket`/`prefix` for the remote state backend, passed via
   `terraform init -backend-config=backend.hcl`
 
 Without them, `terraform validate` still works (no live project/credentials needed), but
-`init`/`plan` will fail or fall back to asking for the backend config interactively.
+`init`/`plan`/`apply` will fail or fall back to asking for the backend config interactively.

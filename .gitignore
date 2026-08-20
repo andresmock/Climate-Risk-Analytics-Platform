@@ -229,6 +229,7 @@ AGENT.md
 *.tfstate.*
 *.tfvars
 backend.hcl
+tfplan*
 crash.log
 crash.*.log
 # Note: .terraform.lock.hcl is intentionally NOT ignored (reproducibility)
