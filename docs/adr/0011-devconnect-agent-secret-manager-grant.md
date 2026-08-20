@@ -2,7 +2,9 @@
 
 ## Status
 
-Accepted
+Accepted, Terraform-managed-grant approach reverted by [ADR-0013](0013-terraform-ci-custom-role.md):
+the grant itself still stands, but is now applied by hand rather than via a
+`google_project_iam_member` resource
 
 ## Context
 
