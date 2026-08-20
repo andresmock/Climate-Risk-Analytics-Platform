@@ -80,9 +80,8 @@ used.
 - No more auto-apply-on-merge: a merge to `main` that changes `terraform/**` no longer updates
   the real project by itself. `terraform-plan`'s PR-comment output is the only signal that
   infra changed until a local `apply` is run — a merged PR can sit un-applied with no automated
-  flag for it. A drift-detection job (scheduled `terraform plan -detailed-exitcode` on `main`,
-  reusing the already-read-only `terraform-plan` identity, failing/annotating if it reports
-  pending changes) would close that gap; not built as part of this ADR.
+  flag for it. Closed by [ADR-0014](0014-terraform-drift-detection.md)'s scheduled drift-detection
+  job.
 - The `terraform-apply` GitHub Environment (required-reviewer protection) and the
   `GCP_TF_SERVICE_ACCOUNT` repository variable become unused. Not removed by this change (both
   are GitHub repo settings, not files in this repo) — safe to delete for tidiness whenever
