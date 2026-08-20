@@ -77,3 +77,12 @@ The two reverted `google_project_iam_member` resources become manual grants as w
 - If any permission above turns out to be missing or unnecessary once exercised against a real
   `apply` (particularly the two flagged as uncertain), fixing it is a fast local iteration now
   that ADR-0012 made apply human-run — no CI round-trip required.
+
+**Correction (found applying this ADR):** the permission audit covered only resources this
+repo's Terraform *declares*, missing that `terraform-ci` also needs to read/write its own remote
+state — the GCS state bucket isn't itself a declared resource. The old `roles/storage.admin`
+covered this as a side effect; the custom role's `storage.buckets.*` list didn't, since that's
+bucket-level metadata, not object-level state-file access. Fixed the same way ADR-0007 already
+handles this for `terraform-plan`: an unconditional `roles/storage.objectAdmin` binding scoped to
+just the state bucket (`gcloud storage buckets add-iam-policy-binding`), granted by hand, not
+added to the project-wide custom role.

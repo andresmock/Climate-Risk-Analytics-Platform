@@ -1,0 +1,46 @@
+config {
+  type: "view",
+  schema: "climate_risk",
+  description: "Unnests each raw forecast response's parallel hourly arrays into one row per (location, forecast hour)."
+}
+
+-- Open-Meteo's `hourly` field holds parallel arrays keyed by variable name (see
+-- src/ingestion/open_meteo.py's HOURLY_VARIABLES), not an array of objects, so the arrays are
+-- extracted with JSON_VALUE_ARRAY and zipped back together by index rather than unnested
+-- directly.
+--
+-- Location name and ingestion run timestamp aren't in the JSON payload itself (ingestion stores
+-- the raw Open-Meteo response unmodified, see src/ingestion/storage.py) — they're only encoded
+-- in the GCS object path (`open-meteo/<location-slug>/<run-timestamp>.json`), which BigQuery
+-- exposes on external tables via the `_FILE_NAME` pseudo column.
+
+WITH parsed AS (
+  SELECT
+    REGEXP_EXTRACT(_FILE_NAME, r'open-meteo/([^/]+)/') AS location_slug,
+    PARSE_TIMESTAMP('%Y%m%dT%H%M%SZ', REGEXP_EXTRACT(_FILE_NAME, r'/(\d{8}T\d{6}Z)\.json$')) AS ingested_at,
+    latitude,
+    longitude,
+    timezone,
+    utc_offset_seconds,
+    JSON_VALUE_ARRAY(hourly, '$.time') AS hourly_time,
+    JSON_VALUE_ARRAY(hourly, '$.temperature_2m') AS hourly_temperature_2m,
+    JSON_VALUE_ARRAY(hourly, '$.precipitation') AS hourly_precipitation,
+    JSON_VALUE_ARRAY(hourly, '$.wind_speed_10m') AS hourly_wind_speed_10m
+  FROM ${ref("forecasts")}
+)
+
+SELECT
+  location_slug,
+  ingested_at,
+  latitude,
+  longitude,
+  timezone,
+  -- hourly.time strings are local time (per utc_offset_seconds), not UTC.
+  TIMESTAMP_SUB(
+    PARSE_TIMESTAMP('%Y-%m-%dT%H:%M', hourly_time[OFFSET(hour_index)]),
+    INTERVAL utc_offset_seconds SECOND
+  ) AS forecast_time_utc,
+  CAST(hourly_temperature_2m[OFFSET(hour_index)] AS FLOAT64) AS temperature_2m_celsius,
+  CAST(hourly_precipitation[OFFSET(hour_index)] AS FLOAT64) AS precipitation_mm,
+  CAST(hourly_wind_speed_10m[OFFSET(hour_index)] AS FLOAT64) AS wind_speed_10m_kmh
+FROM parsed, UNNEST(hourly_time) AS hour_time WITH OFFSET hour_index

@@ -1,0 +1,21 @@
+config {
+  type: "table",
+  schema: "climate_risk",
+  description: "One row per location, per forecasted hour, per ingestion run. Open-Meteo revises its forecast on every pull, so successive runs can return different values for the same hour — every version is kept rather than only the latest, so forecast revisions are visible.",
+  assertions: {
+    uniqueKey: ["location_slug", "forecast_time_utc", "ingested_at"],
+    nonNull: ["location_slug", "forecast_time_utc", "temperature_2m_celsius"]
+  }
+}
+
+SELECT
+  location_slug,
+  ingested_at,
+  latitude,
+  longitude,
+  timezone,
+  forecast_time_utc,
+  temperature_2m_celsius,
+  precipitation_mm,
+  wind_speed_10m_kmh
+FROM ${ref("stg_forecasts")}

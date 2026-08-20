@@ -1,0 +1,6 @@
+config {
+  type: "declaration",
+  schema: "climate_risk_raw",
+  name: "forecasts",
+  description: "Raw Open-Meteo forecast responses. Managed by Terraform (terraform/bigquery.tf) as an external table over GCS, not by Dataform — declared here only so downstream models can ref() it."
+}
