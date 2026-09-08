@@ -4,7 +4,11 @@ config {
   description: "One row per location, per forecasted hour, per ingestion run. Open-Meteo revises its forecast on every pull, so successive runs can return different values for the same hour — every version is kept rather than only the latest, so forecast revisions are visible.",
   assertions: {
     uniqueKey: ["location_slug", "forecast_time_utc", "ingested_at"],
-    nonNull: ["location_slug", "forecast_time_utc", "temperature_2m_celsius"]
+    nonNull: ["location_slug", "forecast_time_utc", "temperature_2m_celsius"],
+    rowConditions: [
+      "precipitation_mm >= 0",
+      "wind_speed_10m_kmh >= 0"
+    ]
   }
 }
 
