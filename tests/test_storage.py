@@ -16,7 +16,7 @@ def test_upload_forecast_builds_the_expected_blob_path(mock_client_cls):
 
     path = upload_forecast("raw-bucket", MEXICO_CITY, RUN_TIMESTAMP, {"hourly": {}})
 
-    assert path == "open-meteo/mexico-city/20260813T183000Z.json"
+    assert path == "open-meteo/forecast/mexico-city/20260813T183000Z.json"
     mock_client.bucket.assert_called_once_with("raw-bucket")
     mock_client.bucket.return_value.blob.assert_called_once_with(path)
     assert mock_blob.upload_from_string.call_count == 1
