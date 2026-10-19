@@ -52,3 +52,50 @@ resource "google_cloud_run_v2_job" "ingestion" {
     ]
   }
 }
+
+# Historical weather ingestion (docs/adr/0016): same image as `ingestion`, run with the
+# `historical` dataset argument on its own daily schedule, so a failure in one doesn't mark the
+# other's run failed. The Dockerfile only sets CMD, so `command` must be given alongside `args` —
+# `args` alone would replace CMD and try to execute `historical` as a program.
+resource "google_cloud_run_v2_job" "ingestion_historical" {
+  name     = "ingestion-historical"
+  location = var.region
+
+  depends_on = [time_sleep.wait_for_ingestion_runtime_actas]
+
+  template {
+    template {
+      service_account = google_service_account.ingestion_runtime.email
+      # Longer than `ingestion`'s: a multi-year backfill is ~100 sequential archive API requests.
+      timeout     = "900s"
+      max_retries = 1
+
+      containers {
+        # Placeholder, same as `ingestion` above — CI deploys the real image (ADR-0005).
+        image   = "us-docker.pkg.dev/cloudrun/container/job:latest"
+        command = ["python", "-m", "ingestion.main"]
+        args    = ["historical"]
+
+        env {
+          name  = "RAW_BUCKET_NAME"
+          value = google_storage_bucket.raw.name
+        }
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "512Mi"
+          }
+        }
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].template[0].containers[0].image,
+      client,
+      client_version,
+    ]
+  }
+}

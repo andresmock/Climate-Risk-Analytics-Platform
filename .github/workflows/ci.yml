@@ -156,7 +156,10 @@ jobs:
           IMAGE="europe-west6-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/ingestion/ingestion:${{ github.sha }}"
           docker tag ingestion:ci "$IMAGE"
           docker push "$IMAGE"
-          gcloud run jobs update ingestion \
-            --image="$IMAGE" \
-            --region="europe-west6" \
-            --project="${{ vars.GCP_PROJECT_ID }}"
+          # Both jobs run the same image, with different args (terraform/cloud_run.tf).
+          for job in ingestion ingestion-historical; do
+            gcloud run jobs update "$job" \
+              --image="$IMAGE" \
+              --region="europe-west6" \
+              --project="${{ vars.GCP_PROJECT_ID }}"
+          done

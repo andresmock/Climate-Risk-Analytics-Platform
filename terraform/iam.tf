@@ -60,6 +60,13 @@ resource "google_cloud_run_v2_job_iam_member" "ingestion_deploy_updates_job" {
   member   = "serviceAccount:${google_service_account.ingestion_deploy.email}"
 }
 
+resource "google_cloud_run_v2_job_iam_member" "ingestion_deploy_updates_historical_job" {
+  name     = google_cloud_run_v2_job.ingestion_historical.name
+  location = google_cloud_run_v2_job.ingestion_historical.location
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${google_service_account.ingestion_deploy.email}"
+}
+
 # Lets GitHub Actions' WIF pool impersonate this SA too (pool itself bootstrapped by hand).
 resource "google_service_account_iam_member" "ingestion_deploy_wif" {
   service_account_id = google_service_account.ingestion_deploy.name
@@ -76,10 +83,10 @@ resource "google_service_account_iam_member" "ingestion_deploy_acts_as_ingestion
 }
 
 # ---- ingestion-invoker: Cloud Scheduler's invoker identity ----
-# Runs the job only, never updates it — kept separate from ingestion-deploy.
+# Runs the ingestion jobs only, never updates them — kept separate from ingestion-deploy.
 resource "google_service_account" "ingestion_invoker" {
   account_id   = "ingestion-invoker"
-  display_name = "Cloud Scheduler invoker for the ingestion job"
+  display_name = "Cloud Scheduler invoker for the ingestion jobs"
 }
 
 resource "google_cloud_run_v2_job_iam_member" "ingestion_invoker_invokes_job" {
@@ -87,6 +94,23 @@ resource "google_cloud_run_v2_job_iam_member" "ingestion_invoker_invokes_job" {
   location = google_cloud_run_v2_job.ingestion.location
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.ingestion_invoker.email}"
+}
+
+resource "google_cloud_run_v2_job_iam_member" "ingestion_invoker_invokes_historical_job" {
+  name     = google_cloud_run_v2_job.ingestion_historical.name
+  location = google_cloud_run_v2_job.ingestion_historical.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.ingestion_invoker.email}"
+}
+
+# terraform-apply needs actAs to name this SA as a Cloud Scheduler job's oauth_token identity
+# (scheduler.tf). The original `ingestion` schedule predates terraform-apply's scoped role and was
+# created by terraform-ci's broader grants, so this gap only showed when ingestion-historical's
+# schedule was first created (see docs/adr/0016).
+resource "google_service_account_iam_member" "terraform_apply_acts_as_ingestion_invoker" {
+  service_account_id = google_service_account.ingestion_invoker.name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:terraform-apply@${var.project_id}.iam.gserviceaccount.com"
 }
 
 # Cloud Scheduler's Google-managed agent mints OAuth tokens as ingestion_invoker.
@@ -197,7 +221,7 @@ resource "google_project_iam_custom_role" "terraform_apply" {
     "bigquery.tables.update",
     "bigquery.tables.delete",
 
-    # Cloud Run (google_cloud_run_v2_job, *_iam_member x2)
+    # Cloud Run (google_cloud_run_v2_job x2, *_iam_member x4)
     "run.jobs.create",
     "run.jobs.get",
     "run.jobs.update",
