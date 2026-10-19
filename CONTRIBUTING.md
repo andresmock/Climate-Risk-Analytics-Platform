@@ -21,7 +21,7 @@
 | Touching...                                          | CI does automatically                                                                          | You also need to |
 |--------------------------------------------------------|--------------------------------------------------------------------------------------------------|-------------------|
 | `terraform/**`                                          | `terraform-check` (fmt/validate) on every push/PR; `terraform-plan` posts a plan as a PR comment; a daily `terraform-drift` job fails if `main` has unapplied changes | After merging, run `terraform apply` yourself against the real project — CI never applies. See [ADR-0012](docs/adr/0012-terraform-apply-moves-local-only.md) and [ADR-0014](docs/adr/0014-terraform-drift-detection.md). |
-| `src/ingestion/**`, `pyproject.toml`, `uv.lock`          | On push to `main`: builds the image, pushes it, and updates the live Cloud Run Job               | Nothing — fully automatic. See [ADR-0005](docs/adr/0005-ingestion-scheduling-and-deploys.md). |
+| `src/ingestion/**`, `pyproject.toml`, `uv.lock`          | On push to `main`: builds the image, pushes it, and updates both live Cloud Run Jobs             | Nothing — fully automatic. See [ADR-0005](docs/adr/0005-ingestion-scheduling-and-deploys.md). |
 | `definitions/**`, `workflow_settings.yaml`               | Compiles the SQLX project (no live BigQuery connection)                                          | Nothing yet — deploying the compiled output isn't wired up yet. |
 | Python (`src/`, `tests/`, `pyproject.toml`)              | `ruff check`, `ruff format --check`, `pytest` on every push/PR                                   | Nothing beyond passing CI. |
 
