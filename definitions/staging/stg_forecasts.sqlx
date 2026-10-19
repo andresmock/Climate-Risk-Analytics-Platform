@@ -11,12 +11,12 @@ config {
 --
 -- Location name and ingestion run timestamp aren't in the JSON payload itself (ingestion stores
 -- the raw Open-Meteo response unmodified, see src/ingestion/storage.py) — they're only encoded
--- in the GCS object path (`open-meteo/<location-slug>/<run-timestamp>.json`), which BigQuery
--- exposes on external tables via the `_FILE_NAME` pseudo column.
+-- in the GCS object path (`open-meteo/forecast/<location-slug>/<run-timestamp>.json`), which
+-- BigQuery exposes on external tables via the `_FILE_NAME` pseudo column.
 
 WITH parsed AS (
   SELECT
-    REGEXP_EXTRACT(_FILE_NAME, r'open-meteo/([^/]+)/') AS location_slug,
+    REGEXP_EXTRACT(_FILE_NAME, r'open-meteo/forecast/([^/]+)/') AS location_slug,
     PARSE_TIMESTAMP('%Y%m%dT%H%M%SZ', REGEXP_EXTRACT(_FILE_NAME, r'/(\d{8}T\d{6}Z)\.json$')) AS ingested_at,
     latitude,
     longitude,

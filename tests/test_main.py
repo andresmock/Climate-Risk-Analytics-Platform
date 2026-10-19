@@ -11,7 +11,7 @@ from ingestion.main import run
 def test_run_ingests_every_location(mock_fetch, mock_upload, monkeypatch):
     monkeypatch.setenv("RAW_BUCKET_NAME", "raw-bucket")
     mock_fetch.return_value = {"hourly": {}}
-    mock_upload.return_value = "open-meteo/zurich/20260813T183000Z.json"
+    mock_upload.return_value = "open-meteo/forecast/zurich/20260813T183000Z.json"
 
     exit_code = run()
 

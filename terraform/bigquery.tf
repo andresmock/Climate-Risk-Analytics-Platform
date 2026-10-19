@@ -26,14 +26,15 @@ resource "google_bigquery_dataset" "raw" {
 resource "google_bigquery_table" "forecasts_raw" {
   dataset_id  = google_bigquery_dataset.raw.dataset_id
   table_id    = "forecasts"
-  description = "Raw Open-Meteo forecast responses, one row per file in gs://<raw-bucket>/open-meteo/*.json."
+  description = "Raw Open-Meteo forecast responses, one row per file in gs://<raw-bucket>/open-meteo/forecast/*.json."
 
   external_data_configuration {
     source_format = "NEWLINE_DELIMITED_JSON"
     # BigQuery allows only one wildcard per source URI. A single `*` still matches across the
-    # `/` in `open-meteo/<location>/<timestamp>.json`, since GCS object names are flat strings,
-    # not real directories.
-    source_uris = ["gs://${google_storage_bucket.raw.name}/open-meteo/*.json"]
+    # `/` in `open-meteo/forecast/<location>/<timestamp>.json`, since GCS object names are flat
+    # strings, not real directories. Scoped to `forecast/` so it can't pick up other datasets'
+    # files under `open-meteo/` (see docs/adr/0016).
+    source_uris = ["gs://${google_storage_bucket.raw.name}/open-meteo/forecast/*.json"]
 
     # Explicit schema, not autodetect: autodetect requires a matching file to already exist in
     # GCS at apply time, which makes table creation depend on the ingestion service having run.

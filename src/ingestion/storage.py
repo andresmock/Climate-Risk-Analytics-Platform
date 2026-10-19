@@ -9,7 +9,7 @@ from ingestion.locations import Location
 
 def _blob_path(location: Location, run_timestamp: datetime) -> str:
     slug = location.name.lower().replace(" ", "-")
-    return f"open-meteo/{slug}/{run_timestamp:%Y%m%dT%H%M%SZ}.json"
+    return f"open-meteo/forecast/{slug}/{run_timestamp:%Y%m%dT%H%M%SZ}.json"
 
 
 def upload_forecast(
