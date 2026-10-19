@@ -236,6 +236,11 @@ resource "google_project_iam_custom_role" "terraform_apply" {
     "cloudscheduler.jobs.fullView", # roles/cloudscheduler.admin carries this alongside .get
     "cloudscheduler.jobs.update",
     "cloudscheduler.jobs.delete",
+    # The provider sets a new job's state right after creating it (resume, or pause if
+    # `paused = true`), which checks these separately from .create. Only surfaced when
+    # ingestion-historical's schedule became the first job terraform-apply ever created.
+    "cloudscheduler.jobs.enable",
+    "cloudscheduler.jobs.pause",
 
     # Developer Connect (google_developer_connect_connection, google_developer_connect_git_repository_link)
     "developerconnect.connections.create",
