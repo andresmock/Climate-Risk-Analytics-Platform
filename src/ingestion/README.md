@@ -27,11 +27,12 @@ Two datasets, both landed as unmodified API responses under their own GCS prefix
 Requires the `RAW_BUCKET_NAME` environment variable (the GCS bucket declared in
 `terraform/storage.tf`) — the entrypoint fails fast if it's unset.
 
-The Cloud Run Job, Cloud Scheduler job, Artifact Registry repository, and IAM needed to run this
-in GCP are declared in `terraform/` (see `terraform/README.md` and
-[ADR-0005](../../docs/adr/0005-ingestion-scheduling-and-deploys.md)) and applied — Cloud
-Scheduler now triggers a `forecast` run every 6 hours. The `historical` dataset has no Cloud Run
-Job or schedule yet.
+Both datasets run in GCP as separate Cloud Run Jobs from the same image, declared in
+`terraform/` with their Cloud Scheduler triggers, Artifact Registry repository, and IAM (see
+`terraform/README.md` and [ADR-0005](../../docs/adr/0005-ingestion-scheduling-and-deploys.md)):
+`ingestion` runs `forecast` every 6 hours, and `ingestion-historical` runs `historical` daily at
+05:00 UTC. The historical data was backfilled from October 2024 with a one-off run of
+`ingestion-historical` using `HISTORICAL_START_DATE`/`HISTORICAL_END_DATE`.
 
 Starter locations were picked to span distinct climate-risk profiles rather than arbitrary
 coverage: Zurich (baseline), Mexico City (seismic), Madrid (extreme heat), Mumbai (monsoon
