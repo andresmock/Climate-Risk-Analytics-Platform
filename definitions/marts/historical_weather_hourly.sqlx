@@ -1,0 +1,25 @@
+config {
+  type: "table",
+  schema: "climate_risk_warehouse",
+  description: "One row per location, per past hour: the historical weather (ERA5 reanalysis) value, i.e. the ground truth forecasts are measured against. Reanalysis, not station measurements — see docs/adr/0016. `ingested_at` records which fetch the value came from.",
+  assertions: {
+    uniqueKey: ["location_slug", "time_utc"],
+    nonNull: ["location_slug", "time_utc", "temperature_2m_celsius"],
+    rowConditions: [
+      "precipitation_mm >= 0",
+      "wind_speed_10m_kmh >= 0"
+    ]
+  }
+}
+
+SELECT
+  location_slug,
+  time_utc,
+  latitude,
+  longitude,
+  timezone,
+  temperature_2m_celsius,
+  precipitation_mm,
+  wind_speed_10m_kmh,
+  ingested_at
+FROM ${ref("stg_historical_weather")}

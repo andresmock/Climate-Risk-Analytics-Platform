@@ -1,0 +1,66 @@
+config {
+  type: "view",
+  schema: "climate_risk_warehouse",
+  description: "Unnests each raw historical weather response into one row per (location, hour), keeping only the most recently fetched value for each hour."
+}
+
+-- The Historical Weather API returns the same response shape as the Forecast API, so parsing
+-- mirrors stg_forecasts.sqlx (see there for why the parallel arrays are zipped by index, and why
+-- location and ingestion time come from the GCS object path). Kept as a separate copy rather than
+-- a shared include until a third source needs the same logic.
+--
+-- Object paths here carry a date-range suffix
+-- (`open-meteo/historical/<location-slug>/<run-timestamp>_<start>_<end>.json`, see
+-- src/ingestion/storage.py), so the run timestamp is matched up to the `_`, not up to `.json`.
+--
+-- Unlike forecasts, a past hour has one true value, not a series of revisions worth keeping. The
+-- daily run re-fetches a trailing 14-day window and the backfill overlaps it (docs/adr/0016), so
+-- the same hour appears in several files. The most recently fetched non-empty value wins. That
+-- also picks up revisions: the API fills the most recent days with preliminary data first and
+-- replaces it once ERA5 publishes, and both versions land inside the 14-day window.
+
+WITH parsed AS (
+  SELECT
+    REGEXP_EXTRACT(_FILE_NAME, r'open-meteo/historical/([^/]+)/') AS location_slug,
+    PARSE_TIMESTAMP('%Y%m%dT%H%M%SZ', REGEXP_EXTRACT(_FILE_NAME, r'/(\d{8}T\d{6}Z)_')) AS ingested_at,
+    latitude,
+    longitude,
+    timezone,
+    utc_offset_seconds,
+    JSON_VALUE_ARRAY(hourly, '$.time') AS hourly_time,
+    JSON_VALUE_ARRAY(hourly, '$.temperature_2m') AS hourly_temperature_2m,
+    JSON_VALUE_ARRAY(hourly, '$.precipitation') AS hourly_precipitation,
+    JSON_VALUE_ARRAY(hourly, '$.wind_speed_10m') AS hourly_wind_speed_10m
+  FROM ${ref("historical_weather")}
+),
+
+unnested AS (
+  SELECT
+    location_slug,
+    ingested_at,
+    latitude,
+    longitude,
+    timezone,
+    -- Requested without a timezone, so the API returns GMT (utc_offset_seconds = 0); converted
+    -- the same way as stg_forecasts anyway, so a future timezone parameter can't silently shift it.
+    TIMESTAMP_SUB(
+      PARSE_TIMESTAMP('%Y-%m-%dT%H:%M', hourly_time[OFFSET(hour_index)]),
+      INTERVAL utc_offset_seconds SECOND
+    ) AS time_utc,
+    CAST(hourly_temperature_2m[OFFSET(hour_index)] AS FLOAT64) AS temperature_2m_celsius,
+    CAST(hourly_precipitation[OFFSET(hour_index)] AS FLOAT64) AS precipitation_mm,
+    CAST(hourly_wind_speed_10m[OFFSET(hour_index)] AS FLOAT64) AS wind_speed_10m_kmh
+  FROM parsed, UNNEST(hourly_time) AS hour_time WITH OFFSET hour_index
+)
+
+SELECT *
+FROM unnested
+-- Hours the API has no data for yet come back as nulls; they must not win over an older file
+-- that does have values for the same hour.
+WHERE temperature_2m_celsius IS NOT NULL
+  OR precipitation_mm IS NOT NULL
+  OR wind_speed_10m_kmh IS NOT NULL
+QUALIFY ROW_NUMBER() OVER (
+  PARTITION BY location_slug, time_utc
+  ORDER BY ingested_at DESC
+) = 1
