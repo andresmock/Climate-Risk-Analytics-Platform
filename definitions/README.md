@@ -17,10 +17,12 @@ The real project ID is injected at runtime via the release config's `default_dat
 This directory:
 
 - `sources/` — `declaration`s for tables Dataform reads but doesn't manage (the raw external
-  table Terraform owns in `terraform/bigquery.tf`).
+  tables Terraform owns in `terraform/bigquery.tf`: `forecasts` and `historical_weather`).
 - `staging/` — one-to-one views that parse/unnest raw source shapes into typed rows, no business
   logic.
-- `marts/` — the actual modelled output, with assertions (`climate_risk_warehouse_assertions`).
+- `marts/` — the actual modelled output, with assertions (`climate_risk_warehouse_assertions`):
+  `forecasts_hourly` keeps every forecast revision, `historical_weather_hourly` keeps one value per
+  past hour (see [docs/adr/0016](../docs/adr/0016-historical-weather-ingestion.md)).
 
 Runs on Google's schedule (`terraform/dataform.tf`'s release/workflow configs), not from CI or
 locally — see [docs/adr/0008](../docs/adr/0008-dataform-execution-model.md).
