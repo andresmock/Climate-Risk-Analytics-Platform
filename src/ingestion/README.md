@@ -35,12 +35,13 @@ Window lengths live in `date_ranges.py`, which also splits a backfill into reque
 Requires the `RAW_BUCKET_NAME` environment variable (the GCS bucket declared in
 `terraform/storage.tf`) — the entrypoint fails fast if it's unset.
 
-Both datasets run in GCP as separate Cloud Run Jobs from the same image, declared in
-`terraform/` with their Cloud Scheduler triggers, Artifact Registry repository, and IAM (see
+Each dataset runs in GCP as a separate Cloud Run Job from the same image, declared in
+`terraform/` with its Cloud Scheduler trigger, Artifact Registry repository, and IAM (see
 `terraform/README.md` and [ADR-0005](../../docs/adr/0005-ingestion-scheduling-and-deploys.md)):
-`ingestion` runs `forecast` every 6 hours, and `ingestion-historical` runs `historical` daily at
-05:00 UTC. The historical data was backfilled from October 2024 with a one-off run of
-`ingestion-historical` using `HISTORICAL_START_DATE`/`HISTORICAL_END_DATE`.
+`ingestion` runs `forecast` every 6 hours, `ingestion-historical` runs `historical` daily at
+05:00 UTC, and `ingestion-previous-runs` runs `previous-runs` daily at 05:30 UTC. Both daily
+datasets were backfilled from October 2024 with a one-off run of their job using the
+`*_START_DATE`/`*_END_DATE` variables.
 
 Starter locations were picked to span distinct climate-risk profiles rather than arbitrary
 coverage: Zurich (baseline), Mexico City (seismic), Madrid (extreme heat), Mumbai (monsoon
