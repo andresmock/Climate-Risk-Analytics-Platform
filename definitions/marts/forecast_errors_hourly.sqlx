@@ -1,0 +1,52 @@
+config {
+  type: "table",
+  schema: "climate_risk_warehouse",
+  description: "One row per location, per forecasted hour, per ingestion run, for hours that have historical weather to compare against: the forecast value, the historical (ERA5 reanalysis) value, and the error between them (forecast minus historical, so positive means the forecast was too high). `lead_time_hours` counts from when the forecast was fetched, not from the weather model's initialisation time, which Open-Meteo doesn't return. `is_truth_settled` marks hours the daily historical run no longer re-fetches, so their historical values won't change.",
+  assertions: {
+    uniqueKey: ["location_slug", "forecast_time_utc", "ingested_at"],
+    nonNull: ["location_slug", "forecast_time_utc", "ingested_at", "lead_time_hours", "is_truth_settled"],
+    rowConditions: [
+      "lead_time_hours >= 0"
+    ]
+  }
+}
+
+-- Same grain as forecasts_hourly, inner-joined to historical_weather_hourly, so forecast hours
+-- that haven't happened yet (or that ERA5 hasn't published yet) drop out until a later run.
+--
+-- The Forecast API returns the whole current day from local midnight, so every run also holds
+-- values for hours already past at fetch time. Those aren't forecasts and would understate the
+-- error, so only hours after the fetch are kept.
+--
+-- The daily historical run re-fetches the last WINDOW_DAYS days (src/ingestion/historical.py,
+-- currently 14), ending yesterday. A run on day D fetches D-14 to D-1, so once D has run, D-14
+-- and earlier are never fetched again and their values are final as far as this platform is
+-- concerned. They are still ERA5's preliminary release, not its later revision (docs/adr/0016).
+-- Keep the 14 below in step with WINDOW_DAYS.
+
+WITH latest_historical_run AS (
+  SELECT DATE(MAX(ingested_at)) AS run_date
+  FROM ${ref("historical_weather_hourly")}
+)
+
+SELECT
+  f.location_slug,
+  f.ingested_at,
+  f.forecast_time_utc,
+  TIMESTAMP_DIFF(f.forecast_time_utc, f.ingested_at, HOUR) AS lead_time_hours,
+  f.temperature_2m_celsius AS forecast_temperature_2m_celsius,
+  h.temperature_2m_celsius AS historical_temperature_2m_celsius,
+  f.temperature_2m_celsius - h.temperature_2m_celsius AS temperature_2m_error_celsius,
+  f.precipitation_mm AS forecast_precipitation_mm,
+  h.precipitation_mm AS historical_precipitation_mm,
+  f.precipitation_mm - h.precipitation_mm AS precipitation_error_mm,
+  f.wind_speed_10m_kmh AS forecast_wind_speed_10m_kmh,
+  h.wind_speed_10m_kmh AS historical_wind_speed_10m_kmh,
+  f.wind_speed_10m_kmh - h.wind_speed_10m_kmh AS wind_speed_10m_error_kmh,
+  DATE(h.time_utc) <= DATE_SUB(r.run_date, INTERVAL 14 DAY) AS is_truth_settled
+FROM ${ref("forecasts_hourly")} AS f
+INNER JOIN ${ref("historical_weather_hourly")} AS h
+  ON h.location_slug = f.location_slug
+  AND h.time_utc = f.forecast_time_utc
+CROSS JOIN latest_historical_run AS r
+WHERE f.forecast_time_utc > f.ingested_at

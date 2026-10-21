@@ -22,6 +22,8 @@ Dataform-modelled tables:
   backfilled to October 2024. `climate_risk_warehouse.historical_weather_hourly` holds one value
   per location and hour, the ground truth forecasts are measured against
   ([ADR-0016](docs/adr/0016-historical-weather-ingestion.md)).
+- **Forecast error:** `climate_risk_warehouse.forecast_errors_hourly` joins the two, giving each
+  forecast's error against historical weather by lead time.
 
 Raw data stays in GCS and is queried through BigQuery external tables (`climate_risk_raw`).
 Dataform recompiles `main` daily and runs 30 minutes after each forecast ingestion, with
