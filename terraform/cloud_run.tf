@@ -99,3 +99,48 @@ resource "google_cloud_run_v2_job" "ingestion_historical" {
     ]
   }
 }
+
+# Previous-run forecasts ingestion (docs/adr/0017): same pattern as `ingestion_historical`, with
+# the `previous-runs` dataset argument. Same timeout, since its backfill is the same ~100
+# month-sized requests.
+resource "google_cloud_run_v2_job" "ingestion_previous_runs" {
+  name     = "ingestion-previous-runs"
+  location = var.region
+
+  depends_on = [time_sleep.wait_for_ingestion_runtime_actas]
+
+  template {
+    template {
+      service_account = google_service_account.ingestion_runtime.email
+      timeout         = "900s"
+      max_retries     = 1
+
+      containers {
+        # Placeholder, same as `ingestion` above — CI deploys the real image (ADR-0005).
+        image   = "us-docker.pkg.dev/cloudrun/container/job:latest"
+        command = ["python", "-m", "ingestion.main"]
+        args    = ["previous-runs"]
+
+        env {
+          name  = "RAW_BUCKET_NAME"
+          value = google_storage_bucket.raw.name
+        }
+
+        resources {
+          limits = {
+            cpu    = "1"
+            memory = "512Mi"
+          }
+        }
+      }
+    }
+  }
+
+  lifecycle {
+    ignore_changes = [
+      template[0].template[0].containers[0].image,
+      client,
+      client_version,
+    ]
+  }
+}

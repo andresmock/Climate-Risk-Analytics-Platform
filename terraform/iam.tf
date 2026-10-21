@@ -67,6 +67,13 @@ resource "google_cloud_run_v2_job_iam_member" "ingestion_deploy_updates_historic
   member   = "serviceAccount:${google_service_account.ingestion_deploy.email}"
 }
 
+resource "google_cloud_run_v2_job_iam_member" "ingestion_deploy_updates_previous_runs_job" {
+  name     = google_cloud_run_v2_job.ingestion_previous_runs.name
+  location = google_cloud_run_v2_job.ingestion_previous_runs.location
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${google_service_account.ingestion_deploy.email}"
+}
+
 # Lets GitHub Actions' WIF pool impersonate this SA too (pool itself bootstrapped by hand).
 resource "google_service_account_iam_member" "ingestion_deploy_wif" {
   service_account_id = google_service_account.ingestion_deploy.name
@@ -99,6 +106,13 @@ resource "google_cloud_run_v2_job_iam_member" "ingestion_invoker_invokes_job" {
 resource "google_cloud_run_v2_job_iam_member" "ingestion_invoker_invokes_historical_job" {
   name     = google_cloud_run_v2_job.ingestion_historical.name
   location = google_cloud_run_v2_job.ingestion_historical.location
+  role     = "roles/run.invoker"
+  member   = "serviceAccount:${google_service_account.ingestion_invoker.email}"
+}
+
+resource "google_cloud_run_v2_job_iam_member" "ingestion_invoker_invokes_previous_runs_job" {
+  name     = google_cloud_run_v2_job.ingestion_previous_runs.name
+  location = google_cloud_run_v2_job.ingestion_previous_runs.location
   role     = "roles/run.invoker"
   member   = "serviceAccount:${google_service_account.ingestion_invoker.email}"
 }

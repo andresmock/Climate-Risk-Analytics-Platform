@@ -9,12 +9,14 @@ A real GCP project now backs this config, with state stored remotely in GCS, the
 copy, no separate load step — BigQuery just queries them where they sit), and
 `climate_risk_warehouse` is where Dataform will materialize modelled output on top of it.
 
-Ingestion runs as two Cloud Run Jobs from the same image (`cloud_run.tf`): `ingestion` pulls
-forecasts every 6 hours, and `ingestion-historical` pulls historical weather daily
-([ADR-0016](../docs/adr/0016-historical-weather-ingestion.md)). Both are triggered by Cloud
+Ingestion runs as three Cloud Run Jobs from the same image (`cloud_run.tf`): `ingestion` pulls
+forecasts every 6 hours, `ingestion-historical` pulls historical weather daily
+([ADR-0016](../docs/adr/0016-historical-weather-ingestion.md)), and `ingestion-previous-runs`
+pulls previous-run forecasts daily
+([ADR-0017](../docs/adr/0017-previous-run-forecasts-ingestion.md)). All are triggered by Cloud
 Scheduler (`scheduler.tf`) via the Cloud Run Jobs Admin API. The image lives in Artifact Registry
 (`artifact_registry.tf`). Three narrowly-scoped service accounts (`iam.tf`) support this, shared
-by both jobs: `ingestion-runtime` (what the jobs execute as), `ingestion-deploy` (CI's identity
+by all jobs: `ingestion-runtime` (what the jobs execute as), `ingestion-deploy` (CI's identity
 for pushing images and updating the jobs — kept separate from `terraform-apply`, which never
 touches the live image), and `ingestion-invoker` (Cloud Scheduler's invoker identity). See
 [ADR-0005](../docs/adr/0005-ingestion-scheduling-and-deploys.md) for why deploys are decoupled

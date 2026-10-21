@@ -47,3 +47,25 @@ resource "google_cloud_scheduler_job" "ingestion_historical" {
     }
   }
 }
+
+# Daily, like historical weather: past forecasts don't change, so the 3-day window only covers
+# missed runs (docs/adr/0017). 05:30 UTC follows the historical run and still finishes before the
+# 06:30 Dataform run.
+resource "google_cloud_scheduler_job" "ingestion_previous_runs" {
+  name        = "ingestion-previous-runs-schedule"
+  description = "Triggers the ingestion-previous-runs Cloud Run Job."
+  schedule    = "30 5 * * *"
+  time_zone   = "UTC"
+
+  depends_on = [time_sleep.wait_for_ingestion_invoker_actas]
+
+  http_target {
+    http_method = "POST"
+    uri         = "https://${var.region}-run.googleapis.com/apis/run.googleapis.com/v1/namespaces/${var.project_id}/jobs/${google_cloud_run_v2_job.ingestion_previous_runs.name}:run"
+
+    oauth_token {
+      service_account_email = google_service_account.ingestion_invoker.email
+      scope                 = "https://www.googleapis.com/auth/cloud-platform"
+    }
+  }
+}
