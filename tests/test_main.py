@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 
-from ingestion.historical import WINDOW_DAYS
+from ingestion.date_ranges import HISTORICAL_WINDOW_DAYS, PREVIOUS_RUNS_WINDOW_DAYS
 from ingestion.locations import LOCATIONS
 from ingestion.main import run
 
@@ -13,6 +13,8 @@ def env(monkeypatch):
     monkeypatch.setenv("RAW_BUCKET_NAME", "raw-bucket")
     monkeypatch.delenv("HISTORICAL_START_DATE", raising=False)
     monkeypatch.delenv("HISTORICAL_END_DATE", raising=False)
+    monkeypatch.delenv("PREVIOUS_RUNS_START_DATE", raising=False)
+    monkeypatch.delenv("PREVIOUS_RUNS_END_DATE", raising=False)
 
 
 @patch("ingestion.main.upload_raw")
@@ -51,7 +53,7 @@ def test_run_historical_fetches_the_default_window_once_per_location(mock_fetch,
     assert exit_code == 0
     assert mock_fetch.call_count == len(LOCATIONS)
     _, start_date, end_date = mock_fetch.call_args.args
-    assert (end_date - start_date).days + 1 == WINDOW_DAYS
+    assert (end_date - start_date).days + 1 == HISTORICAL_WINDOW_DAYS
     for call in mock_upload.call_args_list:
         assert call.args[1] == "historical"
         assert call.args[5] == f"_{start_date:%Y%m%d}_{end_date:%Y%m%d}"
@@ -75,6 +77,37 @@ def test_run_historical_backfill_uploads_each_chunk_separately(
     assert len(set(suffixes)) == chunks_per_location
     assert min(call.args[1] for call in mock_fetch.call_args_list) == date(2026, 7, 1)
     assert max(call.args[2] for call in mock_fetch.call_args_list) == date(2026, 9, 30)
+
+
+@patch("ingestion.main.upload_raw")
+@patch("ingestion.main.fetch_previous_runs")
+def test_run_previous_runs_fetches_the_default_window_once_per_location(mock_fetch, mock_upload):
+    mock_fetch.return_value = {"hourly": {}}
+
+    exit_code = run("previous-runs")
+
+    assert exit_code == 0
+    assert mock_fetch.call_count == len(LOCATIONS)
+    _, start_date, end_date = mock_fetch.call_args.args
+    assert (end_date - start_date).days + 1 == PREVIOUS_RUNS_WINDOW_DAYS
+    for call in mock_upload.call_args_list:
+        assert call.args[1] == "previous-runs"
+        assert call.args[5] == f"_{start_date:%Y%m%d}_{end_date:%Y%m%d}"
+
+
+@patch("ingestion.main.upload_raw")
+@patch("ingestion.main.fetch_previous_runs")
+def test_run_previous_runs_backfill_uses_its_own_env_vars(mock_fetch, mock_upload, monkeypatch):
+    monkeypatch.setenv("PREVIOUS_RUNS_START_DATE", "2024-10-01")
+    monkeypatch.setenv("PREVIOUS_RUNS_END_DATE", "2024-12-31")
+    mock_fetch.return_value = {"hourly": {}}
+
+    exit_code = run("previous-runs")
+
+    assert exit_code == 0
+    assert mock_fetch.call_count // len(LOCATIONS) > 1
+    assert min(call.args[1] for call in mock_fetch.call_args_list) == date(2024, 10, 1)
+    assert max(call.args[2] for call in mock_fetch.call_args_list) == date(2024, 12, 31)
 
 
 def test_run_rejects_unknown_dataset():

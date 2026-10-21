@@ -8,9 +8,11 @@ from ingestion.locations import Location
 from ingestion.open_meteo import (
     FORECAST_URL,
     HISTORICAL_URL,
+    PREVIOUS_RUNS_URL,
     fetch_all,
     fetch_forecast,
     fetch_historical,
+    fetch_previous_runs,
 )
 
 ZURICH = Location("Zurich", 47.3769, 8.5417)
@@ -94,3 +96,38 @@ def test_fetch_historical_raises_on_http_error():
 
     with pytest.raises(requests.HTTPError):
         fetch_historical(ZURICH, date(2026, 10, 1), date(2026, 10, 14))
+
+
+@responses.activate
+def test_fetch_previous_runs_returns_raw_json_unmodified():
+    payload = {"latitude": 47.38, "hourly": {"temperature_2m_previous_day1": [15.0]}}
+    responses.add(responses.GET, PREVIOUS_RUNS_URL, json=payload, status=200)
+
+    result = fetch_previous_runs(ZURICH, date(2024, 10, 1), date(2024, 10, 31))
+
+    assert result == payload
+
+
+@responses.activate
+def test_fetch_previous_runs_requests_every_variable_at_lead_days_1_to_7():
+    responses.add(responses.GET, PREVIOUS_RUNS_URL, json={}, status=200)
+
+    fetch_previous_runs(ZURICH, date(2024, 10, 1), date(2024, 10, 31))
+
+    params = responses.calls[0].request.params
+    assert params["start_date"] == "2024-10-01"
+    assert params["end_date"] == "2024-10-31"
+    hourly = params["hourly"].split(",")
+    assert len(hourly) == 21
+    assert "temperature_2m_previous_day1" in hourly
+    assert "wind_speed_10m_previous_day7" in hourly
+    assert "precipitation_previous_day0" not in hourly
+    assert "temperature_2m" not in hourly
+
+
+@responses.activate
+def test_fetch_previous_runs_raises_on_http_error():
+    responses.add(responses.GET, PREVIOUS_RUNS_URL, status=400)
+
+    with pytest.raises(requests.HTTPError):
+        fetch_previous_runs(ZURICH, date(2024, 10, 1), date(2024, 10, 31))

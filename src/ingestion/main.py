@@ -3,39 +3,55 @@ import logging
 import os
 import sys
 from collections.abc import Callable
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from functools import partial
 from typing import Any
 
-from ingestion import historical
+from ingestion import date_ranges
 from ingestion.locations import LOCATIONS, Location
-from ingestion.open_meteo import fetch_forecast, fetch_historical
+from ingestion.open_meteo import fetch_forecast, fetch_historical, fetch_previous_runs
 from ingestion.storage import upload_raw
 
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-DATASETS = ("forecast", "historical")
+DATASETS = ("forecast", "historical", "previous-runs")
 
 # (location, zero-argument fetch, blob path suffix)
 Request = tuple[Location, Callable[[], dict[str, Any]], str]
+
+
+def _date_range_requests(
+    date_range: tuple[date, date], fetch: Callable[[Location, date, date], dict[str, Any]]
+) -> list[Request]:
+    """One request per location and chunk of the date range, each uploaded under its own
+    `_<start>_<end>` suffix."""
+    return [
+        (
+            location,
+            partial(fetch, location, chunk_start, chunk_end),
+            f"_{chunk_start:%Y%m%d}_{chunk_end:%Y%m%d}",
+        )
+        for location in LOCATIONS
+        for chunk_start, chunk_end in date_ranges.split_range(*date_range)
+    ]
 
 
 def _requests(dataset: str, run_timestamp: datetime) -> list[Request]:
     if dataset == "forecast":
         return [(location, partial(fetch_forecast, location), "") for location in LOCATIONS]
 
+    today = run_timestamp.date()
+
     if dataset == "historical":
-        start_date, end_date = historical.date_range(run_timestamp.date())
-        return [
-            (
-                location,
-                partial(fetch_historical, location, chunk_start, chunk_end),
-                f"_{chunk_start:%Y%m%d}_{chunk_end:%Y%m%d}",
-            )
-            for location in LOCATIONS
-            for chunk_start, chunk_end in historical.split_range(start_date, end_date)
-        ]
+        date_range = date_ranges.date_range(today, date_ranges.HISTORICAL_WINDOW_DAYS, "HISTORICAL")
+        return _date_range_requests(date_range, fetch_historical)
+
+    if dataset == "previous-runs":
+        date_range = date_ranges.date_range(
+            today, date_ranges.PREVIOUS_RUNS_WINDOW_DAYS, "PREVIOUS_RUNS"
+        )
+        return _date_range_requests(date_range, fetch_previous_runs)
 
     raise ValueError(f"Unknown dataset {dataset!r}, expected one of {DATASETS}")
 
