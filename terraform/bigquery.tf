@@ -83,3 +83,21 @@ resource "google_bigquery_table" "historical_weather_raw" {
     ignore_unknown_values = true
   }
 }
+
+# Same pattern again, over the previous-run forecast files (docs/adr/0017). The response keeps
+# the other two APIs' top-level shape; only the variable names inside `hourly` differ, and
+# `hourly` is JSON, so the shared schema fits unchanged.
+resource "google_bigquery_table" "previous_run_forecasts_raw" {
+  dataset_id  = google_bigquery_dataset.raw.dataset_id
+  table_id    = "previous_run_forecasts"
+  description = "Raw Open-Meteo Previous Runs responses (forecasts made 1 to 7 days before each hour), one row per file in gs://<raw-bucket>/open-meteo/previous-runs/*.json."
+
+  external_data_configuration {
+    source_format = "NEWLINE_DELIMITED_JSON"
+    source_uris   = ["gs://${google_storage_bucket.raw.name}/open-meteo/previous-runs/*.json"]
+
+    autodetect            = false
+    schema                = local.open_meteo_raw_schema
+    ignore_unknown_values = true
+  }
+}
