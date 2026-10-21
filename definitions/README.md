@@ -22,7 +22,8 @@ This directory:
   logic.
 - `marts/` — the actual modelled output, with assertions (`climate_risk_warehouse_assertions`):
   `forecasts_hourly` keeps every forecast revision, `historical_weather_hourly` keeps one value per
-  past hour (see [docs/adr/0016](../docs/adr/0016-historical-weather-ingestion.md)).
+  past hour (see [docs/adr/0016](../docs/adr/0016-historical-weather-ingestion.md)), and
+  `forecast_errors_hourly` joins the two into forecast error by lead time.
 
 Runs on Google's schedule (`terraform/dataform.tf`'s release/workflow configs), not from CI or
 locally — see [docs/adr/0008](../docs/adr/0008-dataform-execution-model.md).
