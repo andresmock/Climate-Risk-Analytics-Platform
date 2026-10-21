@@ -1,0 +1,79 @@
+config {
+  type: "view",
+  schema: "climate_risk_warehouse",
+  description: "Unnests each raw Previous Runs response into one row per (location, forecast hour, lead day), keeping only the most recently fetched value for each."
+}
+
+js {
+  // Must match PREVIOUS_RUN_LEAD_DAYS in src/ingestion/open_meteo.py (see docs/adr/0017).
+  const leadDays = [1, 2, 3, 4, 5, 6, 7];
+}
+
+-- Same parallel-array response shape as the other two APIs (see stg_forecasts.sqlx), except that
+-- each variable comes once per lead day, as `<variable>_previous_day<N>`. Rather than 21 columns,
+-- each file's arrays are grouped into one struct per lead day and unnested, so lead day becomes a
+-- column. JSON paths have to be literals, hence generating the structs from `leadDays` above.
+--
+-- Object paths carry a date-range suffix like historical weather's
+-- (`open-meteo/previous-runs/<location-slug>/<run-timestamp>_<start>_<end>.json`), so the run
+-- timestamp is matched up to the `_`.
+--
+-- The daily run re-fetches a trailing window and the backfill overlaps it (docs/adr/0017), so the
+-- same hour and lead day appears in several files. Earlier runs' forecasts don't change once made,
+-- so the duplicates are identical; the most recently fetched non-empty value is kept, as in
+-- stg_historical_weather.
+
+WITH parsed AS (
+  SELECT
+    REGEXP_EXTRACT(_FILE_NAME, r'open-meteo/previous-runs/([^/]+)/') AS location_slug,
+    PARSE_TIMESTAMP('%Y%m%dT%H%M%SZ', REGEXP_EXTRACT(_FILE_NAME, r'/(\d{8}T\d{6}Z)_')) AS ingested_at,
+    latitude,
+    longitude,
+    timezone,
+    utc_offset_seconds,
+    JSON_VALUE_ARRAY(hourly, '$.time') AS hourly_time,
+    [
+      ${leadDays.map(day => `STRUCT(
+        ${day} AS lead_day,
+        JSON_VALUE_ARRAY(hourly, '$.temperature_2m_previous_day${day}') AS temperature_2m,
+        JSON_VALUE_ARRAY(hourly, '$.precipitation_previous_day${day}') AS precipitation,
+        JSON_VALUE_ARRAY(hourly, '$.wind_speed_10m_previous_day${day}') AS wind_speed_10m
+      )`).join(",\n      ")}
+    ] AS by_lead_day
+  FROM ${ref("previous_run_forecasts")}
+),
+
+unnested AS (
+  SELECT
+    location_slug,
+    ingested_at,
+    latitude,
+    longitude,
+    timezone,
+    -- Requested without a timezone, so times are GMT; converted the same way as stg_forecasts
+    -- anyway, so a future timezone parameter can't silently shift them.
+    TIMESTAMP_SUB(
+      PARSE_TIMESTAMP('%Y-%m-%dT%H:%M', hourly_time[OFFSET(hour_index)]),
+      INTERVAL utc_offset_seconds SECOND
+    ) AS forecast_time_utc,
+    day_values.lead_day,
+    CAST(day_values.temperature_2m[SAFE_OFFSET(hour_index)] AS FLOAT64) AS temperature_2m_celsius,
+    CAST(day_values.precipitation[SAFE_OFFSET(hour_index)] AS FLOAT64) AS precipitation_mm,
+    CAST(day_values.wind_speed_10m[SAFE_OFFSET(hour_index)] AS FLOAT64) AS wind_speed_10m_kmh
+  FROM parsed,
+    UNNEST(by_lead_day) AS day_values,
+    UNNEST(hourly_time) AS hour_time WITH OFFSET hour_index
+)
+
+SELECT *
+FROM unnested
+-- An hour with no archived forecast at some lead day comes back as nulls (or, if Open-Meteo
+-- didn't store a variable for the model at all, a missing array, hence SAFE_OFFSET above); such
+-- rows must not win over an older file that has values.
+WHERE temperature_2m_celsius IS NOT NULL
+  OR precipitation_mm IS NOT NULL
+  OR wind_speed_10m_kmh IS NOT NULL
+QUALIFY ROW_NUMBER() OVER (
+  PARTITION BY location_slug, forecast_time_utc, lead_day
+  ORDER BY ingested_at DESC
+) = 1

@@ -13,7 +13,7 @@ See [docs/vision.md](docs/vision.md) for the full motivation and long-term direc
 
 ## Status
 
-Two Open-Meteo datasets flow end to end, from scheduled ingestion through GCS and BigQuery into
+Three Open-Meteo datasets flow end to end, from scheduled ingestion through GCS and BigQuery into
 Dataform-modelled tables:
 
 - **Forecasts:** pulled every 6 hours for four locations. `climate_risk_warehouse.forecasts_hourly`
@@ -22,8 +22,12 @@ Dataform-modelled tables:
   backfilled to October 2024. `climate_risk_warehouse.historical_weather_hourly` holds one value
   per location and hour, the ground truth forecasts are measured against
   ([ADR-0016](docs/adr/0016-historical-weather-ingestion.md)).
-- **Forecast error:** `climate_risk_warehouse.forecast_errors_hourly` joins the two, giving each
-  forecast's error against historical weather by lead time.
+- **Previous-run forecasts:** what Open-Meteo predicted 1 to 7 days before each hour, pulled
+  daily and backfilled to October 2024. `climate_risk_warehouse.previous_run_forecasts_hourly`
+  gives two years of forecasts at known lead times, the training data for forecast correction
+  ([ADR-0017](docs/adr/0017-previous-run-forecasts-ingestion.md)).
+- **Forecast error:** `climate_risk_warehouse.forecast_errors_hourly` joins the platform's own
+  forecasts to historical weather, giving each forecast's error by lead time.
 
 Raw data stays in GCS and is queried through BigQuery external tables (`climate_risk_raw`).
 Dataform recompiles `main` daily and runs 30 minutes after each forecast ingestion, with
@@ -32,15 +36,16 @@ assertions on every mart.
 ## Architecture
 
 ```
-Open-Meteo APIs (Forecast, Historical Weather)
+Open-Meteo APIs (Forecast, Historical Weather, Previous Runs)
       │
       ▼
 Cloud Run Jobs (scheduled by Cloud Scheduler)   — src/ingestion/
   ingestion: forecasts, every 6 hours
   ingestion-historical: historical weather, daily
+  ingestion-previous-runs: previous-run forecasts, daily
       │
       ▼
-Cloud Storage (raw)   open-meteo/forecast/, open-meteo/historical/
+Cloud Storage (raw)   open-meteo/forecast/, open-meteo/historical/, open-meteo/previous-runs/
       │
       ▼
 BigQuery (climate_risk_raw: external tables over GCS)

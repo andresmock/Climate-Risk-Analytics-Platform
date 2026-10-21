@@ -1,0 +1,27 @@
+config {
+  type: "table",
+  schema: "climate_risk_warehouse",
+  description: "One row per location, per forecasted hour, per lead day (1 to 7): the value Open-Meteo's latest run available that many 24-hour periods before the hour predicted for it, from the Previous Runs API (docs/adr/0017). Lead day is defined differently from forecasts_hourly, whose lead time counts hours from this platform's fetch. `ingested_at` records which fetch the value came from.",
+  assertions: {
+    uniqueKey: ["location_slug", "forecast_time_utc", "lead_day"],
+    nonNull: ["location_slug", "forecast_time_utc", "lead_day", "temperature_2m_celsius"],
+    rowConditions: [
+      "lead_day BETWEEN 1 AND 7",
+      "precipitation_mm >= 0",
+      "wind_speed_10m_kmh >= 0"
+    ]
+  }
+}
+
+SELECT
+  location_slug,
+  forecast_time_utc,
+  lead_day,
+  latitude,
+  longitude,
+  timezone,
+  temperature_2m_celsius,
+  precipitation_mm,
+  wind_speed_10m_kmh,
+  ingested_at
+FROM ${ref("stg_previous_run_forecasts")}
