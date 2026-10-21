@@ -18,11 +18,11 @@ config {
 -- values for hours already past at fetch time. Those aren't forecasts and would understate the
 -- error, so only hours after the fetch are kept.
 --
--- The daily historical run re-fetches the last WINDOW_DAYS days (src/ingestion/historical.py,
--- currently 14), ending yesterday. A run on day D fetches D-14 to D-1, so once D has run, D-14
+-- The daily historical run re-fetches the last HISTORICAL_WINDOW_DAYS days
+-- (src/ingestion/date_ranges.py, currently 14), ending yesterday. A run on day D fetches D-14 to D-1, so once D has run, D-14
 -- and earlier are never fetched again and their values are final as far as this platform is
 -- concerned. They are still ERA5's preliminary release, not its later revision (docs/adr/0016).
--- Keep the 14 below in step with WINDOW_DAYS.
+-- Keep the 14 below in step with HISTORICAL_WINDOW_DAYS.
 
 WITH latest_historical_run AS (
   SELECT DATE(MAX(ingested_at)) AS run_date
