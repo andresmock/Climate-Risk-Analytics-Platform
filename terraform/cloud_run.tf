@@ -18,7 +18,10 @@ resource "google_cloud_run_v2_job" "ingestion" {
     template {
       service_account = google_service_account.ingestion_runtime.email
       timeout         = "300s"
-      max_retries     = 1
+      # No retries: a retry re-runs every location under a new run timestamp, duplicating the
+      # ones that already succeeded. The next scheduled run (or, for the date-range jobs below,
+      # the overlapping window) covers whatever failed.
+      max_retries = 0
 
       containers {
         # Placeholder only — nothing has been pushed to the repository yet at first apply.
@@ -68,7 +71,7 @@ resource "google_cloud_run_v2_job" "ingestion_historical" {
       service_account = google_service_account.ingestion_runtime.email
       # Longer than `ingestion`'s: a multi-year backfill is ~100 sequential archive API requests.
       timeout     = "900s"
-      max_retries = 1
+      max_retries = 0
 
       containers {
         # Placeholder, same as `ingestion` above — CI deploys the real image (ADR-0005).
@@ -113,7 +116,7 @@ resource "google_cloud_run_v2_job" "ingestion_previous_runs" {
     template {
       service_account = google_service_account.ingestion_runtime.email
       timeout         = "900s"
-      max_retries     = 1
+      max_retries     = 0
 
       containers {
         # Placeholder, same as `ingestion` above — CI deploys the real image (ADR-0005).
